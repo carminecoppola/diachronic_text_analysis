@@ -1,0 +1,45 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Data files - NON VERSIONARE (possono essere grandi o privati)
+data/raw/
+data/processed/
+
+# Models - NON VERSIONARE (file pesanti, rigenerabili con training)
+models/
+
+# Alignment matrices - NON VERSIONARE (rigenerabili)
+alignment/
+
+# Plots - NON VERSIONARE (rigenerabili)
+plots/
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# File temporanei di documentazione fase
+FASE_*.md

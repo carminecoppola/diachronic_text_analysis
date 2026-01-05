@@ -1,31 +1,34 @@
-# Virtual Environment
-.venv/
-venv/
-env/
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+*.egg-info/
+dist/
+build/
 
-# Data files - NON VERSIONARE (possono essere grandi o privati)
-data/raw/
-data/processed/
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
 
-# Models - NON VERSIONARE (file pesanti, rigenerabili con training)
+# Dati (NON includere nel repository)
+data/
+!data/.gitkeep
+
+# Modelli (NON includere nel repository)
 models/
+!models/.gitkeep
 
-# Alignment matrices - NON VERSIONARE (rigenerabili)
-alignment/
-
-# Plots - NON VERSIONARE (rigenerabili)
+# Plots e risultati (NON includere nel repository)
 plots/
+!plots/.gitkeep
 
-# Jupyter Notebooks checkpoints
-.ipynb_checkpoints/
-notebooks/.ipynb_checkpoints/
+# Alignment output
+alignment/
+!alignment/.gitkeep
 
 # IDE
 .vscode/
@@ -38,8 +41,9 @@ notebooks/.ipynb_checkpoints/
 .DS_Store
 Thumbs.db
 
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
 # Logs
 *.log
-
-# File temporanei di documentazione fase
-FASE_*.md

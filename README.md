@@ -1,80 +1,145 @@
-# 📚 Diachronic Text Analysis: Studying Language Evolution Over Time
+# 📚 Diachronic Text Analysis
 
-## 🎯 Cosa fa questo progetto?
+Analisi dell'evoluzione semantica delle parole nel tempo (1900-1990) usando word embeddings e Google Books N-grams.
 
-Questo progetto studia come **il significato delle parole cambia nel tempo** (fenomeno chiamato **semantic drift**).
-
-### Esempi concreti:
-
-| Parola | Significato 1900s | Significato 1990s+ |
-|--------|-------------------|-------------------|
-| **gay** | felice, gioioso | omosessuale |
-| **cell** | cellula biologica | telefono cellulare |
-| **mouse** | animale (topo) | dispositivo computer |
-| **web** | ragnatela | internet, world wide web |
-
-### Come lo fa?
-
-1. **Addestra word embeddings** (vettori numerici) per ogni periodo temporale
-2. **Allinea gli spazi vettoriali** usando Orthogonal Procrustes
-3. **Calcola quanto ogni parola è cambiata** usando distanza coseno
-4. **Visualizza i risultati** con grafici t-SNE/PCA
-
-**Framework**: PyTorch per deep learning + scipy per allineamento matematico.
+**Stato progetto**: ✅ Fase 3/10 completata (Vocabolario pronto) | 🔜 Prossima: Training embeddings
 
 ---
 
-## Struttura del Progetto
+## 🚀 Quick Start per Collaboratori
+
+### Per chi inizia ORA (Fase 4)
+
+**Cosa è già pronto**:
+- ✅ Dataset scaricato e processato (766M righe → 113M parole uniche)
+- ✅ Vocabolario comune creato (50,001 parole)
+- ✅ 10 file decennali pronti per training
+
+**Cosa devi fare**:
+
+1. **Clona e configura ambiente**:
+```bash
+git clone https://github.com/carminecoppola/diachronic_text_analysis.git
+cd diachronic_text_analysis
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. **Verifica setup**:
+```bash
+python src/config.py  # Test configurazione
+ls -lh data/processed/*.txt  # Verifica dati (dovrebbero essere presenti)
+```
+
+3. **Leggi documentazione**:
+- [SPIEGAZIONE_PROGETTO.md](docs/SPIEGAZIONE_PROGETTO.md) - Panoramica pipeline
+- [DATASET.md](docs/DATASET.md) - Struttura dati
+- [VOCABOLARIO.md](docs/VOCABOLARIO.md) - Come funziona vocab
+
+4. **Inizia sviluppo**: Fase 4 - PyTorch Dataset ([vedi sotto](#📋-pipeline-stato-corrente))
+
+---
+
+## 🎯 Obiettivo
+
+Studiare il **semantic drift**: come il significato delle parole cambia nel corso del tempo.
+
+### Esempi storici
+
+| Parola | 1900s | 1990s |
+|--------|-------|-------|
+| **gay** | felice, gioioso | omosessuale |
+| **computer** | persona che computa | macchina elettronica |
+| **mouse** | animale (topo) | dispositivo input |
+| **web** | ragnatela | internet |
+
+### Approccio metodologico
+
+1. **Word embeddings separati per decennio**: un modello CBOW per ogni periodo (1900s, 1910s, ..., 1990s)
+2. **Allineamento geometrico**: Orthogonal Procrustes per rendere comparabili gli spazi vettoriali
+3. **Metriche quantitative**: cosine similarity, vector displacement, neighbor changes
+4. **Visualizzazione**: PCA/t-SNE per tracciare traiettorie semantiche
+
+---
+
+## 📊 Dataset
+
+**Google Books N-grams v3 (2020)**
+- Corpus: ~8% di tutti i libri pubblicati
+- Lingua: English
+- Periodo: **1900-1990** (10 decenni)
+- Granularità: **decenni** (non anni singoli)
+
+**Motivazione scelta temporale:**
+- Pre-1900: instabilità ortografica
+- Post-1990: coverage dataset incompleta
+- XX secolo: massimi cambiamenti tecnologici/sociali
+
+⚠️ **I dati NON sono inclusi nel repository**. Vengono scaricati tramite script dedicato.
+
+📖 **Documentazione dettagliata:**
+- [DATASET.md](docs/DATASET.md) - Struttura dataset, formati, statistiche
+- [SPIEGAZIONE_PROGETTO.md](docs/SPIEGAZIONE_PROGETTO.md) - Metodologia e teoria
+
+---
+
+## 📁 Struttura Progetto
 
 ```
 diachronic_text_analysis/
-├── .venv/                      # Ambiente virtuale Python (non versionato)
-├── data/
-│   ├── raw/                    # Dati grezzi organizzati per periodo
-│   └── processed/              # Dati preprocessati (tokenizzati, normalizzati)
-├── models/                     # Pesi dei modelli di embedding per periodo
-├── alignment/                  # Matrici di trasformazione Procrustes
-├── plots/                      # Visualizzazioni (t-SNE, PCA, grafici drift)
+├── .venv/                      # Ambiente virtuale (non in Git)
+├── data/                       # Dati (non in Git)
+│   ├── raw/                    # N-gram filtrati da Google
+│   │   ├── 1gram_filtered.tsv
+│   │   └── total_counts.txt
+│   └── processed/              # Aggregati per decennio
+│       ├── 1900s.txt
+│       ├── 1910s.txt
+│       ├── ...
+│       ├── 1990s.txt
+│       └── vocab.json          # Vocabolario comune
+├── docs/                       # Documentazione
+│   ├── DATASET.md              # Struttura dataset dettagliata
+│   └── SPIEGAZIONE_PROGETTO.md # Spiegazione metodologia
+├── models/                     # Embeddings (non in Git)
+│   ├── emb_1900s.pt
+│   ├── emb_1910s.pt
+│   └── ...
+├── plots/                      # Visualizzazioni (non in Git)
 ├── src/                        # Codice sorgente
-│   ├── __init__.py
-│   ├── config.py               # Configurazioni centrali del progetto
-│   ├── preprocess.py           # Pipeline di preprocessing del testo
-│   ├── build_vocab.py          # Costruzione vocabolario
-│   ├── dataset.py              # Dataset e DataLoader PyTorch
-│   ├── models/
-│   │   ├── __init__.py
-│   │   └── word_embedding.py   # Modelli CBOW/Skip-gram
-│   ├── train_embeddings.py     # Training embeddings per periodo
-│   ├── alignment.py            # Allineamento Orthogonal Procrustes
-│   ├── semantic_drift.py       # Calcolo metriche di drift
-│   └── visualize_drift.py      # Generazione visualizzazioni
-├── notebooks/                  # Notebook Jupyter per analisi esplorative
-├── requirements.txt            # Dipendenze del progetto
+│   ├── config.py               # Parametri centrali
+│   ├── download_ngrams.py      # FASE 1: Download dataset
+│   ├── preprocess.py           # FASE 2: Aggregazione decenni
+│   ├── build_vocab.py          # FASE 3: Vocabolario comune
+│   ├── dataset.py              # (futuro) PyTorch Dataset
+│   ├── model.py                # (futuro) Modello CBOW
+│   ├── train.py                # (futuro) Training embeddings
+│   ├── align_embeddings.py     # (futuro) Procrustes
+│   ├── semantic_drift.py       # (futuro) Metriche drift
+│   └── visualize.py            # (futuro) Plot
+├── requirements.txt            # Dipendenze Python
+├── .gitignore                  # Esclude data/, models/, plots/
 └── README.md                   # Questo file
 ```
 
 ---
 
-## Setup Ambiente
+## 🚀 Setup Iniziale
 
 ### 1. Prerequisiti
-- Python 3.8 o superiore
+
+- Python 3.8+
 - pip aggiornato
+- ~10GB spazio disco libero (per subset dataset)
 
 ### 2. Creazione Ambiente Virtuale
 
-**Linux/macOS:**
 ```bash
 cd diachronic_text_analysis
 python3 -m venv .venv
-source .venv/bin/activate
-```
-
-**Windows:**
-```cmd
-cd diachronic_text_analysis
-python -m venv .venv
-.\.venv\Scripts\activate
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 ```
 
 ### 3. Installazione Dipendenze
@@ -84,141 +149,220 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Download Risorse NLP (eseguire dopo installazione)
+### 4. Verifica Setup
 
 ```bash
-python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('wordnet')"
+python src/config.py
 ```
 
-Per spaCy (modello inglese):
-```bash
-python -m spacy download en_core_web_sm
+Output atteso:
+```
+✓ Directory create: data, models, plots
+📅 Decenni da analizzare: ['1900s', '1910s', ..., '1990s']
+📊 Vocabolario: 50000 parole
+🧠 Embedding dimension: 300
 ```
 
 ---
 
-## Pipeline del Progetto
+## 📋 Pipeline (Stato Corrente)
 
-### Fase 1: Acquisizione Dati
-- Scaricare corpus storico con metadati temporali
-- Organizzare in `data/raw/` per periodo
+### ✅ FASE 1-3: Completate
 
-### Fase 2: Preprocessing
-```bash
-python src/preprocess.py
-```
-- Normalizzazione, tokenizzazione, lemmatizzazione
-- Output: file per periodo in `data/processed/`
+| Fase | Script | Stato | Output | Tempo |
+|------|--------|-------|--------|-------|
+| 1 | `download_ngrams.py` | ✅ Completato | 766M righe filtrate (14GB) | 4-6h |
+| 2 | `preprocess.py` | ✅ Completato | 10 file decenni (3.1GB, 113M parole) | 30-45m |
+| 3 | `build_vocab.py` | ✅ Completato | `vocab.json` (50,001 parole) | 5-10m |
 
-### Fase 3: Costruzione Vocabolario
-```bash
-python src/build_vocab.py
-```
-- Creazione vocabolario globale/per periodo
-- Gestione frequenze minime
+**Risultati disponibili**:
+- `data/raw/1gram_filtered.tsv` - 766M righe (anni 1900-1990, solo alfabetiche)
+- `data/processed/1900s.txt` ... `1990s.txt` - frequenze normalizzate per decennio
+- `data/processed/vocab.json` - vocabolario comune (99.98%+ copertura)
 
-### Fase 4: Training Embeddings
-```bash
-python src/train_embeddings.py
-```
-- Addestramento modello CBOW per ogni periodo
-- Salvataggio pesi in `models/`
+📖 **Dettagli**: [DATASET.md](docs/DATASET.md) | [VOCABOLARIO.md](docs/VOCABOLARIO.md)
 
-### Fase 5: Allineamento Spazi
-```bash
-python src/alignment.py
-```
+---
+
+### 🔜 FASE 4-10: Da Implementare
+
+**FASE 4: PyTorch Dataset** (PROSSIMA)
+- **File da creare**: `src/dataset.py`
+- **Obiettivo**: Carica decenni, genera contesti CBOW, batch iterator
+- **Input**: `data/processed/*.txt` + `vocab.json`
+- **Output**: PyTorch Dataset class
+
+**FASE 5: Training Embeddings**
+- **File da creare**: `src/model.py` (CBOW) + `src/train.py` (loop)
+- **Obiettivo**: 10 modelli CBOW (1 per decennio)
+- **Output**: `models/emb_1900s.pt` ... `emb_1990s.pt`
+- **Tempo stimato**: 2-4h per decennio (GPU)
+
+**FASE 6-10: Alignment, Analisi, Visualizzazione**
 - Orthogonal Procrustes alignment
-- Salvataggio matrici in `alignment/`
+- Metriche semantic drift
+- Plot traiettorie PCA/t-SNE
 
-### Fase 6: Analisi Semantic Drift
-```bash
-python src/semantic_drift.py
-```
-- Calcolo metriche di variazione semantica
-- Export risultati in CSV
-
-### Fase 7: Visualizzazione
-```bash
-python src/visualize_drift.py
-```
-- Generazione grafici t-SNE/PCA
-- Salvataggio in `plots/`
+📖 **Dettagli completi**: [SPIEGAZIONE_PROGETTO.md](docs/SPIEGAZIONE_PROGETTO.md)
 
 ---
 
-## 📊 Stato Progetto
+## 📊 Configurazione
 
-### ✅ Completato
-- **Fase 1**: Setup ambiente e dipendenze
-- **Fase 2**: Preprocessing testo (5M+ tokens processati)
+Tutti i parametri in [`src/config.py`](src/config.py):
 
-### 🔄 In Corso
-- **Fase 3**: Costruzione vocabolario
+```python
+# Periodo
+START_YEAR = 1900
+END_YEAR = 1990
 
-### 📋 Da Fare
-- Fase 4: Training word embeddings
-- Fase 5: Allineamento Procrustes
-- Fase 6: Calcolo semantic drift
-- Fase 7: Visualizzazioni
+# Dataset  
+NUM_FILES_TO_DOWNLOAD = 24  # 24=completo, 3=test
+ONLY_ALPHABETIC = True
 
----
+# Vocabolario
+VOCAB_SIZE = 50000
 
-## 📓 Notebook Jupyter
-
-Per una **guida interattiva** che spiega il progetto passo-passo:
-
-```bash
-jupyter notebook notebooks/01_intro_e_preprocessing.ipynb
+# Embeddings (per fasi future)
+EMBEDDING_DIM = 300
+CONTEXT_WINDOW = 5
+BATCH_SIZE = 512
+EPOCHS = 10
 ```
 
-Il notebook include:
-- Spiegazione teorica del semantic drift
-- Esplorazione dati preprocessati
-- Visualizzazioni statistiche
-- Esempi di parole che cambiano significato
-
 ---
 
-## 📚 Dataset
+## 🔧 Comandi Utili
 
-**Nota**: I dati NON sono versionati su Git (`.gitignore`).
-
-### Per training vero (HPC/locale):
-Usa il tuo corpus storico privato in `data/raw/`
-
-### Per demo/test (Colab):
 ```bash
-python src/generate_demo_data.py  # Genera dati sintetici di esempio
+# Esplora dati
+head -20 data/processed/1950s.txt
+cat data/processed/vocab_stats.txt
+
+# Conta parole
+wc -l data/processed/*.txt
+
+# Verifica dimensioni
+du -sh data/raw/ data/processed/
+
+# Test configurazione
+python src/config.py
 ```
 
-### Dataset consigliati (pubblici):
-1. **Google Books N-grams**: ampio, multi-lingua
-2. **COHA (Corpus of Historical American English)**: bilanciato
-3. **New York Times Archive**: alta qualità
+---
+
+## 🤝 Suddivisione Lavoro (Suggerita)
+
+| Persona | Fase | Task | Tempo stimato |
+|---------|------|------|---------------|
+| A | 4 | PyTorch Dataset | 1-2 giorni |
+| B | 5a | CBOW Model | 1-2 giorni |
+| C | 5b | Training Loop | 2-3 giorni |
+| D | 6-7 | Alignment + Metrics | 3-4 giorni |
+| Tutti | 8-10 | Analisi + Plot | 2-3 giorni |
+
+**Total**: ~1-2 settimane con collaborazione parallela
 
 ---
 
-## 🛠️ Troubleshooting
-
-### Python 3.14 + spaCy
-spaCy 3.x ha problemi con Python 3.14. Soluzione:
-- Usa NLTK (già configurato di default in `config.py`)
-- Oppure usa Python 3.11/3.12 con spaCy
-
-### Memoria insufficiente
-Riduci `BATCH_SIZE` in `config.py` o processa meno periodi.
+**Output:**
+- `data/processed/vocab.json`: `{word: index}`
+- `data/processed/vocab_stats.txt`: statistiche copertura
 
 ---
 
-## 📖 Riferimenti Teorici
+### 🔜 FASE 4: Training Embeddings (Da Implementare)
 
-- Hamilton et al. (2016). "Diachronic Word Embeddings Reveal Statistical Laws of Semantic Change"
-- Kulkarni et al. (2015). "Statistically Significant Detection of Linguistic Change"
-- Orthogonal Procrustes: metodo matematico per allineare matrici
+**Script futuro:** `train.py`
+
+Addestrare modello CBOW separato per ogni decennio.
+
+**Parametri chiave** (in [`config.py`](src/config.py)):
+- `EMBEDDING_DIM = 300`
+- `CONTEXT_WINDOW = 5`
+- `EPOCHS = 10`
+
+**Output previsto:** `models/emb_1900s.pt`, ..., `models/emb_1990s.pt`
 
 ---
 
-## 👨‍💻 Autore
+### 🔜 FASE 5-7: Allineamento, Analisi, Visualizzazione (Da Implementare)
 
-Progetto didattico per studio NLP e analisi diacronica del linguaggio.
+Pipeline completa da sviluppare dopo training embeddings.
+
+---
+
+## 📊 Configurazione
+
+Tutti i parametri sono centralizzati in [`src/config.py`](src/config.py):
+
+```python
+# Periodo temporale
+START_YEAR = 1900
+END_YEAR = 1990
+
+# Vocabolario
+VOCAB_SIZE = 50000
+
+# Embeddings
+EMBEDDING_DIM = 300
+CONTEXT_WINDOW = 5
+
+# Training
+BATCH_SIZE = 512
+LEARNING_RATE = 0.025
+EPOCHS = 10
+```
+
+Modificare qui per cambiare comportamento del progetto.
+
+---
+
+## 🧪 Verifica Installazione
+
+Dopo setup, eseguire:
+
+```bash
+# Test config
+python src/config.py
+
+# Verifica che tqdm funzioni (usato nei download)
+python -c "from tqdm import tqdm; import time; [time.sleep(0.01) for _ in tqdm(range(100))]"
+```
+
+---
+
+## 📝 Note sul Dataset
+
+### Perché solo 3 file di default?
+
+Il dataset completo Google N-grams è **enorme** (centinaia di GB). Per:
+- **Test/sviluppo**: 3 file (~5-10GB) sono sufficienti
+- **Progetto universitario**: subset rappresentativo è accettabile
+- **Ricerca seria**: aumentare `NUM_FILES_TO_DOWNLOAD = 24` in [`config.py`](src/config.py)
+
+### Alternativa: Dati Pre-filtrati
+
+Se il download è troppo lento, è possibile:
+1. Preparare dataset campionato offline
+2. Metterlo direttamente in `data/raw/1gram_filtered.tsv`
+3. Saltare FASE 1 e partire da FASE 2
+
+---
+
+## 📚 Riferimenti
+
+- **Hamilton et al. (2016)**: "Diachronic Word Embeddings Reveal Statistical Laws of Semantic Change"
+- **Mikolov et al. (2013)**: "Efficient Estimation of Word Representations in Vector Space" (Word2Vec)
+
+---
+
+## 📄 Licenza
+
+Progetto universitario - uso educativo.
+
+---
+
+**Ultimo aggiornamento**: 5 Gennaio 2026  
+**Fase corrente**: 3/10 (Vocabolario Completato)  
+**Prossima fase**: FASE 4 - PyTorch Dataset

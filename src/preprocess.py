@@ -1,335 +1,286 @@
 """
-Preprocessing del Testo per Analisi Diacronica
+FASE 2: Preprocessing e aggregazione per decennio
 
-Questo modulo gestisce la pipeline di preprocessing del testo:
-1. Caricamento dati raw per periodo
-2. Normalizzazione (lowercase, rimozione punteggiatura)
-3. Tokenizzazione
-4. Lemmatizzazione (opzionale)
-5. Filtraggio (stopwords, lunghezza token)
-6. Salvataggio dati processati
+Questo script processa i dati filtrati da FASE 1 e li aggrega per decennio.
 
-Input: File .txt in data/raw/ (uno per periodo)
-Output: File .txt processati in data/processed/
+COSA FA:
+1. Legge data/raw/1gram_filtered.tsv
+2. Aggrega frequenze per decennio (1900-1909 → 1900s, ecc.)
+3. Normalizza frequenze usando total_counts
+4. Applica filtri di pulizia (lunghezza, lowercase)
+5. Salva file separati per ogni decennio in data/processed/
+
+INPUT:
+- data/raw/1gram_filtered.tsv
+- data/raw/total_counts.txt
+
+OUTPUT:
+- data/processed/1900s.txt
+- data/processed/1910s.txt
+- ...
+- data/processed/1990s.txt
+
+Formato output: ogni file contiene righe con:
+word \t normalized_frequency
 """
 
-import re
-import string
-from pathlib import Path
-from collections import Counter
-import config
+import os
+import sys
+from collections import defaultdict
+from typing import Dict
 
-# Import condizionali basati su configurazione
-if config.NLP_TOOL == 'spacy':
-    try:
-        import spacy
-        nlp = spacy.load(config.SPACY_MODEL)
-    except:
-        print(f"⚠️  spaCy model '{config.SPACY_MODEL}' non trovato.")
-        print(f"   Installare con: python -m spacy download {config.SPACY_MODEL}")
-        nlp = None
-elif config.NLP_TOOL == 'nltk':
-    try:
-        import nltk
-        from nltk.tokenize import word_tokenize
-        from nltk.corpus import stopwords
-        from nltk.stem import WordNetLemmatizer
-        
-        # Verifica risorse NLTK
-        try:
-            nltk.data.find('tokenizers/punkt')
-        except LookupError:
-            print("Downloading NLTK punkt...")
-            nltk.download('punkt', quiet=True)
-        
-        try:
-            nltk.data.find('corpora/stopwords')
-        except LookupError:
-            print("Downloading NLTK stopwords...")
-            nltk.download('stopwords', quiet=True)
-        
-        try:
-            nltk.data.find('corpora/wordnet')
-        except LookupError:
-            print("Downloading NLTK wordnet...")
-            nltk.download('wordnet', quiet=True)
-        
-        lemmatizer = WordNetLemmatizer()
-        stop_words = set(stopwords.words('english')) if config.REMOVE_STOPWORDS else set()
-    except ImportError:
-        print("⚠️  NLTK non installato. Installare con: pip install nltk")
-        raise
+# Import config
+from config import (
+    DATA_RAW_DIR,
+    DATA_PROCESSED_DIR,
+    TOTAL_COUNTS_FILE,
+    START_YEAR,
+    END_YEAR,
+    DECADES,
+    MIN_TOKEN_LENGTH,
+    MAX_TOKEN_LENGTH,
+    LOWERCASE,
+    MIN_CORPUS_OCCURRENCES,
+    get_decade_from_year,
+    get_processed_file_path,
+    create_directories
+)
 
 
-class TextPreprocessor:
+def load_total_counts() -> Dict[int, int]:
     """
-    Preprocessor per testo con pipeline configurabile.
-    """
-    
-    def __init__(self):
-        """Inizializza il preprocessor con configurazioni da config.py"""
-        self.nlp_tool = config.NLP_TOOL
-        self.use_lemmatization = config.USE_LEMMATIZATION
-        self.remove_stopwords = config.REMOVE_STOPWORDS
-        self.lowercase = config.LOWERCASE
-        self.remove_punctuation = config.REMOVE_PUNCTUATION
-        self.remove_numbers = config.REMOVE_NUMBERS
-        self.min_length = config.MIN_TOKEN_LENGTH
-        self.max_length = config.MAX_TOKEN_LENGTH
-        
-        if self.nlp_tool == 'spacy' and nlp is None:
-            raise ValueError("spaCy non configurato correttamente")
-    
-    def clean_text(self, text):
-        """
-        Pulizia base del testo.
-        
-        Args:
-            text: Testo grezzo
-        
-        Returns:
-            Testo pulito
-        """
-        # Lowercase
-        if self.lowercase:
-            text = text.lower()
-        
-        # Rimuovi numeri
-        if self.remove_numbers:
-            text = re.sub(r'\d+', '', text)
-        
-        # Rimuovi punteggiatura
-        if self.remove_punctuation:
-            text = text.translate(str.maketrans('', '', string.punctuation))
-        
-        # Normalizza spazi
-        text = re.sub(r'\s+', ' ', text).strip()
-        
-        return text
-    
-    def tokenize_spacy(self, text):
-        """
-        Tokenizzazione con spaCy.
-        
-        Args:
-            text: Testo da tokenizzare
-        
-        Returns:
-            Lista di token (lemmatizzati se configurato)
-        """
-        doc = nlp(text)
-        
-        if self.use_lemmatization:
-            tokens = [token.lemma_ for token in doc]
-        else:
-            tokens = [token.text for token in doc]
-        
-        # Filtra stopwords
-        if self.remove_stopwords:
-            tokens = [t for t in tokens if t.lower() not in nlp.Defaults.stop_words]
-        
-        return tokens
-    
-    def tokenize_nltk(self, text):
-        """
-        Tokenizzazione con NLTK.
-        
-        Args:
-            text: Testo da tokenizzare
-        
-        Returns:
-            Lista di token (lemmatizzati se configurato)
-        """
-        tokens = word_tokenize(text)
-        
-        # Lemmatizzazione
-        if self.use_lemmatization:
-            tokens = [lemmatizer.lemmatize(token) for token in tokens]
-        
-        # Filtra stopwords
-        if self.remove_stopwords:
-            tokens = [t for t in tokens if t.lower() not in stop_words]
-        
-        return tokens
-    
-    def filter_tokens(self, tokens):
-        """
-        Filtra token per lunghezza e validità.
-        
-        Args:
-            tokens: Lista di token
-        
-        Returns:
-            Lista di token filtrati
-        """
-        filtered = []
-        
-        for token in tokens:
-            # Verifica lunghezza
-            if len(token) < self.min_length or len(token) > self.max_length:
-                continue
-            
-            # Verifica che sia alfabetico (opzionale)
-            if not token.isalpha():
-                continue
-            
-            filtered.append(token)
-        
-        return filtered
-    
-    def process_text(self, text):
-        """
-        Pipeline completa di preprocessing.
-        
-        Args:
-            text: Testo grezzo
-        
-        Returns:
-            Lista di token processati
-        """
-        # Step 1: Pulizia
-        text = self.clean_text(text)
-        
-        # Step 2: Tokenizzazione (e lemmatizzazione)
-        if self.nlp_tool == 'spacy':
-            tokens = self.tokenize_spacy(text)
-        elif self.nlp_tool == 'nltk':
-            tokens = self.tokenize_nltk(text)
-        else:
-            # Fallback: split semplice
-            tokens = text.split()
-        
-        # Step 3: Filtraggio
-        tokens = self.filter_tokens(tokens)
-        
-        return tokens
-
-
-def process_period(period, preprocessor):
-    """
-    Processa tutti i dati di un periodo.
-    
-    Args:
-        period: Nome del periodo (es. '1900s')
-        preprocessor: Istanza di TextPreprocessor
+    Carica total_counts per normalizzazione.
     
     Returns:
-        Tuple (tokens processati, statistiche)
+        Dizionario {anno: total_match_count}
     """
-    input_file = config.get_period_file_path(period, 'raw')
+    print("Caricamento total_counts...")
     
-    if not input_file.exists():
-        print(f"  ⚠️  File non trovato: {input_file}")
-        return None, None
+    total_counts = {}
     
-    # Carica testo
-    with open(input_file, 'r', encoding='utf-8') as f:
-        text = f.read()
+    try:
+        with open(TOTAL_COUNTS_FILE, 'r', encoding='utf-8') as f:
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) >= 2:
+                    year = int(parts[0])
+                    count = int(parts[1])
+                    total_counts[year] = count
     
-    # Preprocessing
-    tokens = preprocessor.process_text(text)
+    except FileNotFoundError:
+        print(f"⚠ File total_counts non trovato: {TOTAL_COUNTS_FILE}")
+        print("Normalizzazione non possibile. Usare frequenze raw.")
+        return {}
     
-    # Statistiche
-    stats = {
-        'period': period,
-        'total_tokens': len(tokens),
-        'unique_tokens': len(set(tokens)),
-        'vocab_coverage': len(set(tokens)) / len(tokens) if len(tokens) > 0 else 0,
-        'top_10_words': Counter(tokens).most_common(10)
-    }
-    
-    return tokens, stats
+    print(f"✓ Caricati total_counts per {len(total_counts)} anni")
+    return total_counts
 
 
-def save_processed_data(period, tokens):
+def aggregate_by_decade(input_file: str, total_counts: Dict[int, int]) -> Dict[str, Dict[str, float]]:
     """
-    Salva i token processati.
+    Aggrega n-gram per decennio.
     
     Args:
-        period: Nome del periodo
-        tokens: Lista di token processati
+        input_file: Path del file filtrato
+        total_counts: Dizionario total counts per anno
+    
+    Returns:
+        Dizionario {decennio: {word: normalized_freq}}
     """
-    output_file = config.get_period_file_path(period, 'processed')
+    print(f"\nAggregazione per decennio da {input_file}...")
     
-    # Salva un token per riga (più facile da processare dopo)
-    with open(output_file, 'w', encoding='utf-8') as f:
-        for token in tokens:
-            f.write(f"{token}\n")
+    # Struttura: {decade: {word: total_count}}
+    decade_data = {decade: defaultdict(int) for decade in DECADES}
     
-    print(f"  ✓ Salvato: {output_file}")
+    # Struttura: {decade: total_count_decade}
+    decade_totals = {decade: 0 for decade in DECADES}
+    
+    lines_processed = 0
+    
+    with open(input_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            lines_processed += 1
+            
+            if lines_processed % 1000000 == 0:
+                print(f"  Processate {lines_processed//1000000}M righe...")
+            
+            try:
+                parts = line.strip().split('\t')
+                if len(parts) != 4:
+                    continue
+                
+                word, year_str, match_count_str, _ = parts
+                year = int(year_str)
+                match_count = int(match_count_str)
+                
+                # Determina decennio
+                decade = get_decade_from_year(year)
+                
+                if decade not in decade_data:
+                    continue
+                
+                # Applica filtri preprocessing
+                # 1. Lowercase
+                if LOWERCASE:
+                    word = word.lower()
+                
+                # 2. Lunghezza
+                if len(word) < MIN_TOKEN_LENGTH or len(word) > MAX_TOKEN_LENGTH:
+                    continue
+                
+                # 3. Solo alfabetici (già filtrato in download, ma ricontrolliamo)
+                if not word.isalpha():
+                    continue
+                
+                # Aggrega
+                decade_data[decade][word] += match_count
+            
+            except (ValueError, IndexError):
+                continue
+    
+    print(f"✓ Processate {lines_processed:,} righe totali")
+    
+    # Calcola totali per decennio (per normalizzazione)
+    # Total counts = numero totale di parole pubblicate in quel decennio
+    # Serve per normalizzare: "guerra" con 100K occorrenze negli anni '40
+    # ha frequenza relativa diversa rispetto agli anni '10 (meno libri pubblicati)
+    print("\nCalcolo totali per decennio...")
+    for decade in DECADES:
+        decade_start = int(decade[:4])
+        decade_end = decade_start + 9
+        
+        for year in range(decade_start, decade_end + 1):
+            if year in total_counts:
+                decade_totals[decade] += total_counts[year]
+    
+    # Normalizza frequenze
+    # normalized_freq = count / total_words_in_decade
+    # Questo rende comparabili le frequenze tra decenni con volumi diversi
+    print("Normalizzazione frequenze...")
+    normalized_data = {}
+    
+    for decade in DECADES:
+        normalized_data[decade] = {}
+        total = decade_totals[decade]
+        
+        if total == 0:
+            print(f"⚠ Total count = 0 per {decade}, uso frequenze raw")
+            total = 1
+        
+        for word, count in decade_data[decade].items():
+            # Normalizza: freq = count / total
+            # Esempio: "war" con 1M occorrenze su 100B parole totali = freq 1e-5
+            normalized_freq = count / total
+            normalized_data[decade][word] = normalized_freq
+        
+        print(f"  {decade}: {len(normalized_data[decade]):,} parole uniche")
+    
+    return normalized_data
+
+
+def filter_by_frequency(decade_data: Dict[str, Dict[str, float]]) -> Dict[str, Dict[str, float]]:
+    """
+    Filtra parole con occorrenze totali sotto soglia.
+    
+    Args:
+        decade_data: Dati aggregati per decennio
+    
+    Returns:
+        Dati filtrati
+    """
+    print(f"\nFiltraggio parole con freq totale < {MIN_CORPUS_OCCURRENCES}...")
+    
+    # Calcola occorrenze totali per ogni parola (somma su tutti i decenni)
+    # Nota: per calcolo preciso servirebbe count raw, ma usiamo approssimazione
+    word_total_freq = defaultdict(float)
+    
+    for decade_words in decade_data.values():
+        for word, freq in decade_words.items():
+            word_total_freq[word] += freq
+    
+    # Filtra
+    filtered_data = {}
+    for decade, decade_words in decade_data.items():
+        filtered_data[decade] = {
+            word: freq
+            for word, freq in decade_words.items()
+            if word_total_freq[word] >= MIN_CORPUS_OCCURRENCES / 1e9  # Approssimazione
+        }
+        
+        removed = len(decade_words) - len(filtered_data[decade])
+        print(f"  {decade}: rimosse {removed} parole rare")
+    
+    return filtered_data
+
+
+def save_processed_data(decade_data: Dict[str, Dict[str, float]]):
+    """
+    Salva dati processati in file separati per decennio.
+    
+    Args:
+        decade_data: Dati aggregati e normalizzati
+    """
+    print("\nSalvataggio file processati...")
+    
+    for decade in DECADES:
+        output_file = get_processed_file_path(decade)
+        
+        # Ordina parole per frequenza (decrescente)
+        sorted_words = sorted(
+            decade_data[decade].items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            for word, freq in sorted_words:
+                f.write(f"{word}\t{freq:.12e}\n")
+        
+        print(f"  ✓ {decade}: {len(sorted_words):,} parole salvate in {output_file}")
 
 
 def main():
-    """
-    Main function: preprocessing di tutti i periodi.
-    """
+    """Main function."""
+    
     print("="*70)
-    print("  Preprocessing Testo - Analisi Diacronica")
+    print("PREPROCESSING E AGGREGAZIONE PER DECENNIO")
     print("="*70)
-    print()
+    print(f"Periodo: {START_YEAR}-{END_YEAR}")
+    print(f"Decenni: {', '.join(DECADES)}")
+    print("="*70 + "\n")
     
-    print("Configurazione:")
-    print(f"  - NLP Tool: {config.NLP_TOOL}")
-    print(f"  - Lemmatizzazione: {config.USE_LEMMATIZATION}")
-    print(f"  - Rimozione stopwords: {config.REMOVE_STOPWORDS}")
-    print(f"  - Lowercase: {config.LOWERCASE}")
-    print(f"  - Lunghezza token: {config.MIN_TOKEN_LENGTH}-{config.MAX_TOKEN_LENGTH}")
-    print()
+    # Crea directory
+    create_directories()
     
-    # Inizializza preprocessor
-    try:
-        preprocessor = TextPreprocessor()
-    except Exception as e:
-        print(f"✗ Errore inizializzazione preprocessor: {e}")
-        return
+    # File input
+    input_file = os.path.join(DATA_RAW_DIR, "1gram_filtered.tsv")
     
-    # Crea output directory
-    config.PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if not os.path.exists(input_file):
+        print(f"❌ File input non trovato: {input_file}")
+        print("Eseguire prima download_ngrams.py (FASE 1)")
+        return 1
     
-    # Processa ogni periodo
-    all_stats = []
+    # Step 1: Carica total_counts
+    total_counts = load_total_counts()
     
-    print("Processing periodi...")
-    print()
+    # Step 2: Aggrega per decennio
+    decade_data = aggregate_by_decade(input_file, total_counts)
     
-    for period in config.PERIODS:
-        print(f"[{period}]")
-        
-        # Preprocessing
-        tokens, stats = process_period(period, preprocessor)
-        
-        if tokens is None:
-            continue
-        
-        # Salva
-        save_processed_data(period, tokens)
-        
-        # Mostra statistiche
-        print(f"  Tokens: {stats['total_tokens']:,}")
-        print(f"  Parole uniche: {stats['unique_tokens']:,}")
-        print(f"  Vocab coverage: {stats['vocab_coverage']:.2%}")
-        print(f"  Top 10: {[w for w, c in stats['top_10_words'][:5]]}")
-        print()
-        
-        all_stats.append(stats)
+    # Step 3: Filtra parole rare
+    decade_data = filter_by_frequency(decade_data)
     
-    # Statistiche finali
+    # Step 4: Salva
+    save_processed_data(decade_data)
+    
+    print("\n" + "="*70)
+    print("✅ FASE 2 COMPLETATA")
     print("="*70)
-    print("  ✅ PREPROCESSING COMPLETATO!")
+    print(f"File salvati in: {DATA_PROCESSED_DIR}")
+    print("Prossimo step: eseguire build_vocab.py per costruire vocabolario")
     print("="*70)
-    print()
     
-    # Tabella riepilogativa
-    print(f"{'Periodo':<10} {'Tokens':<12} {'Unique':<12} {'Coverage':<10}")
-    print("-" * 50)
-    for stats in all_stats:
-        print(f"{stats['period']:<10} {stats['total_tokens']:<12,} "
-              f"{stats['unique_tokens']:<12,} {stats['vocab_coverage']:<10.2%}")
-    print()
-    
-    print(f"File processati salvati in: {config.PROCESSED_DATA_DIR}")
-    print()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

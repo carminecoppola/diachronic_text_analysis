@@ -1,159 +1,182 @@
 """
-Configurazione Centrale del Progetto
+Configuration centrale del progetto Diachronic Text Analysis.
 
-Questo file contiene tutte le configurazioni e costanti utilizzate
-nel progetto di analisi diacronica. Modificare questi parametri
-per adattare il progetto a dataset e obiettivi specifici.
+Contiene tutti i parametri globali utilizzati dalle varie fasi:
+- Periodo temporale e granularità
+- Parametri vocabolario
+- Parametri embeddings
+- Path dei dati
+
+Modificare qui per cambiare comportamento globale del progetto.
 """
 
 import os
-from pathlib import Path
 
 # ============================================================================
-# DIRECTORY PATHS
+# PERIODO TEMPORALE
 # ============================================================================
 
-# Root directory del progetto
-PROJECT_ROOT = Path(__file__).parent.parent.absolute()
+# Finestra temporale di analisi
+START_YEAR = 1900
+END_YEAR = 1990  # Inclusivo (decade 1990-1999)
 
-# Directories per dati
-DATA_DIR = PROJECT_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
+# Decenni da analizzare (generati automaticamente)
+# Questo genera: ["1900s", "1910s", "1920s", ..., "1990s"]
+# Ogni decade raggruppa 10 anni: 1900s = anni 1900-1909, 1910s = 1910-1919, ecc.
+DECADES = [f"{year}s" for year in range(START_YEAR, END_YEAR + 1, 10)]
 
-# Directories per output
-MODELS_DIR = PROJECT_ROOT / "models"
-ALIGNMENT_DIR = PROJECT_ROOT / "alignment"
-PLOTS_DIR = PROJECT_ROOT / "plots"
-
-# Crea directories se non esistono
-for dir_path in [RAW_DATA_DIR, PROCESSED_DATA_DIR, MODELS_DIR, 
-                 ALIGNMENT_DIR, PLOTS_DIR]:
-    dir_path.mkdir(parents=True, exist_ok=True)
-
+# Motivazione scelta temporale:
+# - XX secolo offre stabilità linguistica e massimi cambiamenti semantici (tecnologia, società)
+# - Pre-1900: problemi di OCR e ortografia non standardizzata
+# - Post-1990: coverage limitata nel dataset (decade incompleta)
+# - Granularità decennale: ottimale per catturare drift semantico senza rumore
 
 # ============================================================================
-# PREPROCESSING CONFIGURATION
+# DATASET (Google Books N-grams v3)
 # ============================================================================
 
-# Preprocessing options
-LOWERCASE = True                    # Converti tutto in minuscolo
-REMOVE_PUNCTUATION = True          # Rimuovi punteggiatura
-REMOVE_NUMBERS = False             # Rimuovi numeri (utili per date)
-MIN_TOKEN_LENGTH = 2               # Lunghezza minima token
-MAX_TOKEN_LENGTH = 50              # Lunghezza massima token
-REMOVE_STOPWORDS = False           # Rimozione stopwords (opzionale)
-USE_LEMMATIZATION = True           # Usa lemmatizzazione invece di stemming
+# Lingua da analizzare
+LANGUAGE = "eng"  # English
 
-# NLP tool (opzioni: 'nltk', 'spacy')
-NLP_TOOL = 'nltk'  # Cambiato a NLTK per compatibilità Python 3.14
-SPACY_MODEL = 'en_core_web_sm'
+# Versione dataset (v3 2020 è la più recente)
+DATASET_VERSION = "20200217"  # v3 (2020)
 
+# URL base Google Cloud Storage (V3 2020 usa path diverso!)
+NGRAMS_BASE_URL = "http://storage.googleapis.com/books/ngrams/books/20200217/eng"
 
-# ============================================================================
-# TEMPORAL CONFIGURATION
-# ============================================================================
+# Numero di file da scaricare (su 24 totali)
+# DATASET COMPLETO: tutti i 24 file (~26GB compressi)
+NUM_FILES_TO_DOWNLOAD = 24
 
-# Definizione periodi temporali (esempio per decenni)
-# Modificare in base al corpus specifico
-PERIODS = [
-    "1900s",  # 1900-1909
-    "1910s",  # 1910-1919
-    "1920s",  # 1920-1929
-    "1930s",  # 1930-1939
-    "1940s",  # 1940-1949
-    "1950s",  # 1950-1959
-    "1960s",  # 1960-1969
-    "1970s",  # 1970-1979
-    "1980s",  # 1980-1989
-    "1990s",  # 1990-1999
-]
-
-# Periodo di riferimento per allineamento (primo periodo di default)
-REFERENCE_PERIOD = PERIODS[0]
-
+# Soglia minima occorrenze nel corpus (dataset già filtrato a 40+)
+MIN_CORPUS_OCCURRENCES = 100
 
 # ============================================================================
-# VOCABULARY CONFIGURATION
+# PREPROCESSING
 # ============================================================================
 
-# Frequenza minima per inclusione nel vocabolario
-MIN_WORD_FREQ = 5
+# Filtri token
+MIN_TOKEN_LENGTH = 2
+MAX_TOKEN_LENGTH = 20
+ONLY_ALPHABETIC = True  # Solo lettere (no numeri, simboli)
 
-# Dimensione massima vocabolario (None = illimitato)
-MAX_VOCAB_SIZE = 50000
+# Normalizzazione
+LOWERCASE = True
 
-# Token speciali
-PAD_TOKEN = "<PAD>"
+# ============================================================================
+# VOCABOLARIO
+# ============================================================================
+
+# Dimensione vocabolario (top-K parole più frequenti)
+# 50K è un buon trade-off tra copertura (parole comuni) e gestibilità computazionale
+# Con ~15M parole uniche totali, 50K cattura le più stabili attraverso il secolo
+VOCAB_SIZE = 50000
+
+# Frequenza minima globale per inclusione nel vocabolario
+# Filtra parole troppo rare che potrebbero essere errori OCR o nomi propri
+MIN_VOCAB_FREQ = 100
+
+# Token speciale per parole sconosciute (out-of-vocabulary)
+# Durante il training, parole non nel vocabolario vengono mappate a <UNK>
 UNK_TOKEN = "<UNK>"
 
-# Indici token speciali
-PAD_IDX = 0
-UNK_IDX = 1
-
-
 # ============================================================================
-# EMBEDDING MODEL CONFIGURATION
+# WORD EMBEDDINGS (per fasi successive)
 # ============================================================================
 
-# Architettura modello (opzioni: 'cbow', 'skipgram')
-MODEL_TYPE = 'cbow'
-
-# Dimensione embedding
+# Dimensione vettori embedding
+# 300 dimensioni è standard per word embeddings (Word2Vec, GloVe usano 100-300)
+# Maggiore dimensionalità = maggiore capacità espressiva, ma più costoso
 EMBEDDING_DIM = 300
 
-# Finestra di contesto
-CONTEXT_WINDOW = 5  # parole prima + dopo la target
+# Finestra di contesto per CBOW/Skip-gram
+# CONTEXT_WINDOW=5 significa: considera 5 parole prima + 5 dopo = 10 parole totali
+# Finestre più grandi catturano relazioni semantiche più distanti
+CONTEXT_WINDOW = 5
 
-# Training hyperparameters
-BATCH_SIZE = 512
-LEARNING_RATE = 0.001
-NUM_EPOCHS = 10
-NEGATIVE_SAMPLES = 5  # per negative sampling
+# Negative sampling
+# Per ogni parola positiva, campiona 5 parole negative (per loss contrastivo)
+# Trade-off: più samples = training più lento ma migliore qualità
+NEGATIVE_SAMPLES = 5
 
-# Device
-DEVICE = 'cuda' if os.environ.get('CUDA_VISIBLE_DEVICES') else 'cpu'
-
-# Random seed per riproducibilità
-RANDOM_SEED = 42
-
-
-# ============================================================================
-# ALIGNMENT CONFIGURATION
-# ============================================================================
-
-# Numero minimo di parole comuni per allineamento
-MIN_COMMON_WORDS = 1000
-
-# Usa solo parole ad alta frequenza per allineamento
-USE_TOP_FREQ_FOR_ALIGNMENT = True
-TOP_FREQ_N = 5000  # top N parole più frequenti
-
+# Training parameters
+BATCH_SIZE = 512        # Numero di esempi per batch (più alto = più veloce, più RAM)
+LEARNING_RATE = 0.025   # Learning rate iniziale (standard per Word2Vec)
+EPOCHS = 10             # Numero di passaggi completi sul dataset
 
 # ============================================================================
-# SEMANTIC DRIFT CONFIGURATION
+# PATH DATI
 # ============================================================================
 
-# Parole target da analizzare (None = automatico basato su frequenza)
-TARGET_WORDS = None  # es. ['gay', 'cell', 'mouse', 'web', 'tweet']
+# Root del progetto (directory contenente src/)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Se TARGET_WORDS è None, seleziona top N parole con maggiore drift
-AUTO_SELECT_TOP_DRIFT = 50
+# Directory dati (NON in Git)
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+DATA_RAW_DIR = os.path.join(DATA_DIR, "raw")
+DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed")
 
-# Numero di nearest neighbors da analizzare
-K_NEAREST_NEIGHBORS = 10
+# Directory modelli (NON in Git)
+MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
 
-# Threshold di similarità per filtrare risultati
-MIN_SIMILARITY = 0.3
+# Directory plot (NON in Git)
+PLOTS_DIR = os.path.join(PROJECT_ROOT, "plots")
 
+# Directory alignment (NON in Git)
+ALIGNMENT_DIR = os.path.join(PROJECT_ROOT, "alignment")
+
+# File specifici
+TOTAL_COUNTS_FILE = os.path.join(DATA_RAW_DIR, "total_counts.txt")
+VOCAB_FILE = os.path.join(DATA_PROCESSED_DIR, "vocab.json")
 
 # ============================================================================
-# VISUALIZATION CONFIGURATION
+# UTILITY FUNCTIONS
 # ============================================================================
 
-# Metodo di riduzione dimensionalità (opzioni: 'tsne', 'pca')
-REDUCTION_METHOD = 'tsne'
+def create_directories():
+    """Crea tutte le directory necessarie se non esistono."""
+    os.makedirs(DATA_RAW_DIR, exist_ok=True)
+    os.makedirs(DATA_PROCESSED_DIR, exist_ok=True)
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    os.makedirs(PLOTS_DIR, exist_ok=True)
+    os.makedirs(ALIGNMENT_DIR, exist_ok=True)
+    print(f"✓ Directory create: {DATA_DIR}, {MODELS_DIR}, {PLOTS_DIR}")
 
+
+def get_decade_from_year(year: int) -> str:
+    """
+    Converte un anno nel suo decennio.
+    
+    Args:
+        year: Anno (es. 1985)
+    
+    Returns:
+        Stringa decennio (es. "1980s")
+    """
+    decade_start = (year // 10) * 10
+    return f"{decade_start}s"
+
+
+def get_processed_file_path(decade: str) -> str:
+    """
+    Restituisce il path del file processato per un decennio.
+    
+    Args:
+        decade: Stringa decennio (es. "1990s")
+    
+    Returns:
+        Path completo (es. "data/processed/1990s.txt")
+    """
+    return os.path.join(DATA_PROCESSED_DIR, f"{decade}.txt")
+
+
+if __name__ == "__main__":
+    # Test configurazione
+    create_directories()
+    print(f"\n📅 Decenni da analizzare: {DECADES}")
+    print(f"📊 Vocabolario: {VOCAB_SIZE} parole")
+    print(f"🧠 Embedding dimension: {EMBEDDING_DIM}")
+    print(f"📁 Path dati: {DATA_DIR}")
 # Parametri t-SNE
 TSNE_PERPLEXITY = 30
 TSNE_N_ITER = 1000
@@ -184,7 +207,7 @@ SHOW_PROGRESS_BAR = True
 # UTILITY FUNCTIONS
 # ============================================================================
 
-def get_period_file_path(period: str, data_type: str = 'processed') -> Path:
+def get_period_file_path(period: str, data_type: str = 'processed') -> str:
     """
     Restituisce il path del file per un dato periodo.
     
@@ -196,31 +219,32 @@ def get_period_file_path(period: str, data_type: str = 'processed') -> Path:
         Path completo del file
     """
     if data_type == 'raw':
-        return RAW_DATA_DIR / f"{period}.txt"
+        return os.path.join(DATA_RAW_DIR, f"{period}.txt")
     elif data_type == 'processed':
-        return PROCESSED_DATA_DIR / f"{period}.txt"
+        return os.path.join(DATA_PROCESSED_DIR, f"{period}.txt")
     else:
         raise ValueError(f"data_type deve essere 'raw' o 'processed', ricevuto: {data_type}")
 
 
-def get_model_path(period: str) -> Path:
+
+def get_model_path(period: str) -> str:
     """
     Restituisce il path del file modello per un dato periodo.
     
     Args:
-        period: Nome del periodo
+        period: Nome del periodo (es. "1990s")
     
     Returns:
         Path del file modello
     """
-    return MODELS_DIR / f"emb_{period}.pt"
+    return os.path.join(MODELS_DIR, f"emb_{period}.pt")
 
 
-def get_vocab_path() -> Path:
+def get_vocab_path() -> str:
     """
     Restituisce il path del file vocabolario.
     
     Returns:
         Path del file vocabolario
     """
-    return PROCESSED_DATA_DIR / "vocab.pkl"
+    return VOCAB_FILE

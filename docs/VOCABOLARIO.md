@@ -20,10 +20,17 @@ Un **dizionario che mappa ogni parola a un numero univoco (indice)**, necessario
 
 ## A Cosa Serve?
 
-### 1. Conversione Testo → Numeri
+### 1. Conversione Testo → Numeri (Fase 4)
 
-**Prima**: `"the computer is running"`
-**Dopo**: `[1, 1523, 45, 892]`
+Il vocabolario permette di convertire testo in numeri durante il training del modello.
+
+**NOTA**: Questa conversione **NON è ancora implementata**. Avverrà nella **Fase 4 (PyTorch Dataset)**.
+
+**Esempio di utilizzo futuro**:
+- **Prima**: `"the computer is running"`
+- **Dopo**: `[1, 1523, 45, 892]`
+
+Attualmente (Fase 3), il vocabolario è solo una "mappa" che verrà usata successivamente.
 
 ### 2. Vocabolario Comune Tra Decenni
 
@@ -73,22 +80,25 @@ Token `<UNK>` (indice 0) gestisce:
 
 **Percorso**: `data/processed/vocab.json`
 
-**Utilizzo**:
+**Utilizzo (Fase 4 - da implementare)**:
 ```python
 import json
 
+# Caricamento vocabolario
 with open('data/processed/vocab.json', 'r') as f:
     vocab = json.load(f)
 
-# Converti parola → indice
+# Conversione parola → indice (usata durante training CBOW)
 word = "computer"
 idx = vocab.get(word, 0)  # 0 se non trovata (<UNK>)
 print(f"{word} → {idx}")  # computer → 1523
 
-# Converti frase → sequenza
+# Conversione frase → sequenza di indici
 sentence = "the computer is running"
 indices = [vocab.get(w, 0) for w in sentence.split()]
 print(indices)  # [1, 1523, 6, 892]
+
+# Questo codice sarà implementato in dataset.py (Fase 4)
 ```
 
 ### 2. vocab_stats.txt (1.6KB)
@@ -204,10 +214,10 @@ FASE 3 COMPLETATA
 
 ## File Correlati
 
-- **Generato da**: [`src/build_vocab.py`](../src/build_vocab.py)
+- **Generato da**: [`src/build_vocab.py`](../src/build_vocab.py) - Fase 3 ✅
 - **Configurazione**: [`src/config.py`](../src/config.py)
 - **Input**: `data/processed/*.txt` (output `preprocess.py`)
-- **Usato da**: `train.py` (prossima fase)
+- **Usato da**: `dataset.py` (Fase 4 - da implementare) e `train.py` (Fase 5)
 
 ---
 

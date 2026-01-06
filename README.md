@@ -26,18 +26,120 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-2. **Verifica setup**:
+2. **Crea il tuo branch di lavoro**:
+```bash
+# Crea e passa a un nuovo branch con il tuo nome
+git checkout -b nome-cognome
+
+# Esempio: git checkout -b mario-rossi
+# oppure: git checkout -b feature/dataset-implementation
+```
+
+3. **Verifica setup**:
 ```bash
 python src/config.py  # Test configurazione
 ls -lh data/processed/*.txt  # Verifica dati (dovrebbero essere presenti)
+git branch  # Verifica di essere sul tuo branch (*)
 ```
 
-3. **Leggi documentazione**:
+4. **Leggi documentazione**:
 - [SPIEGAZIONE_PROGETTO.md](docs/SPIEGAZIONE_PROGETTO.md) - Panoramica pipeline
 - [DATASET.md](docs/DATASET.md) - Struttura dati
 - [VOCABOLARIO.md](docs/VOCABOLARIO.md) - Come funziona vocab
 
-4. **Inizia sviluppo**: Fase 4 - PyTorch Dataset ([vedi sotto](#📋-pipeline-stato-corrente))
+5. **Inizia sviluppo**: Fase 4 - PyTorch Dataset ([vedi sotto](#📋-pipeline-stato-corrente))
+
+---
+
+## 🔀 Workflow Git per Collaboratori
+
+### Ogni collaboratore lavora sul proprio branch
+
+**Mai lavorare direttamente su `main`!** Ogni utente deve creare il proprio branch personale.
+
+#### 1. Prima volta - Crea branch
+```bash
+# Assicurati di essere su main aggiornato
+git checkout main
+git pull origin main
+
+# Crea il tuo branch personale
+git checkout -b nome-cognome
+# oppure con naming più descrittivo: git checkout -b feature/nome-feature
+```
+
+#### 2. Durante il lavoro - Salva progressi
+```bash
+# Verifica modifiche
+git status
+
+# Aggiungi file modificati
+git add src/dataset.py  # singolo file
+# oppure: git add .      # tutti i file
+
+# Commit con messaggio descrittivo
+git commit -m "Implementato PyTorch Dataset per CBOW"
+
+# Sincronizza con il tuo branch remoto
+git push origin nome-cognome
+```
+
+#### 3. Lavoro completato - Richiedi merge
+```bash
+# Assicurati che tutto sia committato
+git status  # Dovrebbe dire "nothing to commit, working tree clean"
+
+# Push finale del branch
+git push origin nome-cognome
+
+# A questo punto:
+# 1. Vai su GitHub → repository
+# 2. Clicca "Compare & pull request"
+# 3. Scrivi descrizione del lavoro fatto
+# 4. Assegna reviewer
+# 5. Attendi approvazione prima del merge su main
+```
+
+#### 4. Aggiornare il tuo branch con modifiche da main
+```bash
+# Se altri hanno fatto modifiche su main mentre lavoravi
+git checkout main
+git pull origin main
+git checkout nome-cognome
+git merge main  # Integra modifiche di main nel tuo branch
+# Risolvi eventuali conflitti
+git push origin nome-cognome
+```
+
+### Comandi Git Utili
+
+```bash
+# Vedere su quale branch sei
+git branch
+
+# Vedere stato modifiche
+git status
+
+# Vedere cronologia commit
+git log --oneline
+
+# Annullare modifiche non committate
+git checkout -- nome-file.py
+
+# Cambiare branch
+git checkout nome-branch
+
+# Eliminare branch locale (dopo merge)
+git branch -d nome-branch
+```
+
+### ⚠️ Regole Importanti
+
+1. **Non fare push su `main` direttamente** - lavora sempre su un branch
+2. **Commit frequenti** - salva progressi con messaggi chiari
+3. **Pull request per merge** - non mergiare il tuo branch su main autonomamente
+4. **Sync regolarmente** - aggiorna il tuo branch da main per evitare conflitti
+5. **Testa prima di push** - verifica che il codice funzioni
 
 ---
 

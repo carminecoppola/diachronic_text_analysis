@@ -2,7 +2,7 @@
 
 Analisi dell'evoluzione semantica delle parole nel tempo (1900-1990) usando word embeddings e Google Books N-grams.
 
-**Stato progetto**: ✅ Fase 3/10 completata (Vocabolario pronto) | 🔜 Prossima: Training embeddings
+**Stato progetto**: ✅ Fase 3/10 completata (Vocabolario pronto) | 🔜 Prossima: Testing PyTorch Dataset
 
 ---
 
@@ -11,9 +11,10 @@ Analisi dell'evoluzione semantica delle parole nel tempo (1900-1990) usando word
 ### Per chi inizia ORA (Fase 4)
 
 **Cosa è già pronto**:
-- ✅ Dataset scaricato e processato (766M righe → 113M parole uniche)
-- ✅ Vocabolario comune creato (50,001 parole)
-- ✅ 10 file decennali pronti per training
+- ✅ Dataset 3-gram scaricato (551M righe, 15GB)
+- ✅ Preprocessing completato (12 decenni: 1900s-2010s)
+- ✅ Vocabolario costruito (50,002 parole comuni)
+- ✅ File processati pronti per training
 
 **Cosa devi fare**:
 

@@ -13,29 +13,33 @@
 
 ```
 FASE 1: Download Dataset
-   ├─ Scarica Google Books N-grams v3 (2020) da Hugging Face
-   └─ Output: data/raw/google-books-ngrams-1grams.parquet (14GB, 766M righe)
+   ├─ Scarica Google Books 3-grams v3 (2020) da Google Cloud Storage
+   ├─ URL: http://storage.googleapis.com/books/ngrams/books/20200217/eng/3-XXXXX-of-06881.gz
+   ├─ File scaricati: 3-02000 to 3-02019 (20 file, range parole comuni)
+   ├─ Rimozione POS tags (computer_NOUN → computer)
+   └─ Output: data/raw/3gram_filtered.tsv (15GB, ~680M righe)
 
 FASE 2: Preprocessing
-   ├─ Filtra anni 1900-1999 (XX secolo)
-   ├─ Suddividi in 10 decenni
-   ├─ Normalizza maiuscole, rimuovi numeri/punteggiatura
-   └─ Output: 10 file data/processed/{decade}.txt (3.1GB totali)
+   ├─ Filtra anni 1900-2019 (120 anni)
+   ├─ Suddividi in 12 decenni (1900s-2010s)
+   ├─ Split 3-gram in (word1, word2, word3)
+   ├─ Aggrega frequenze per decade
+   └─ Output: 12 file data/processed/{decade}.txt
 
 FASE 3: Costruzione Vocabolario
    ├─ Aggrega frequenze da tutti i decenni
-   ├─ Seleziona top 50.000 parole
-   └─ Output: data/processed/vocab.json (990KB)
+   ├─ Seleziona parole più frequenti
+   └─ Output: data/processed/vocab.json
 
 FASE 4: PyTorch Dataset
-   ├─ Context windows (CBOW)
-   ├─ Negative sampling
-   └─ Output: dataset.py + dataloader.py
+   ├─ Usa 3-gram per contesto CBOW: TARGET = word2, CONTEXT = [word1, word3]
+   ├─ Negative sampling per training efficiente
+   └─ Output: dataset.py con CBOWNgramDataset
 
 FASE 5: Training CBOW
-   ├─ 10 modelli indipendenti (uno per decennio)
-   ├─ Hyperparams: dim=300, window=5, epochs=5-10
-   └─ Output: models/cbow_1900s.pt ... models/cbow_1990s.pt
+   ├─ 12 modelli indipendenti (uno per decennio 1900s-2010s)
+   ├─ Hyperparams: dim=300, context_size=1 (parola prima+dopo), epochs=5-10
+   └─ Output: models/cbow_1900s.pt ... models/cbow_2010s.pt
 
 FASE 6: Allineamento Embeddings
    ├─ Orthogonal Procrustes per allineare decenni consecutivi
@@ -70,11 +74,11 @@ FASE 10: Analisi Tematiche
 
 | Fase | Status | Note |
 |------|--------|------|
-| 1. Download | COMPLETATA | 766M righe, 14GB |
-| 2. Preprocessing | COMPLETATA | 113.7M words, 10 decenni |
-| 3. Vocabolario | COMPLETATA | 50,001 parole |
-| 4. PyTorch Dataset | - | Prossima fase |
-| 5. Training CBOW | - | |
+| 1. Download | ✅ COMPLETATA | 551M righe 3-gram, 15GB |
+| 2. Preprocessing | ✅ COMPLETATA | 12 decenni, 74K-134K parole/decennio |
+| 3. Vocabolario | ✅ COMPLETATA | 50,002 parole comuni |
+| 4. PyTorch Dataset | 🔄 PROSSIMA | Test CBOWNgramDataset con 3-gram |
+| 5. Training CBOW | IN ATTESA | 12 modelli (1900s-2010s) |
 | 6. Allineamento | - | |
 | 7-10 | - | |
 
@@ -84,20 +88,22 @@ FASE 10: Analisi Tematiche
 
 ### Word Embeddings (CBOW)
 
-**Continuous Bag-of-Words** impara rappresentazioni dense:
+**Continuous Bag-of-Words** impara rappresentazioni dense usando 3-gram:
 ```
-Frase: "the computer is running fast"
-Context: ["the", "is", "running", "fast"]
-Target: "computer"
+3-gram: "computer is running"
+Context: ["computer", "running"]  (parola prima + parola dopo)
+Target: "is"  (parola centrale)
 
-Obiettivo: predire "computer" da context
-→ Rete neurale impara embedding che cattura co-occorrenze
+Obiettivo: predire parola centrale dal suo contesto immediato
+→ Rete neurale impara embedding che cattura co-occorrenze reali
 ```
 
-**Proprietà**:
+**Vantaggi con 3-gram**:
+- Contesto reale da Google Books (non finestre artificiali)
+- Cattura relazioni sintattiche e semantiche naturali
 - Parole con contesti simili → embeddings vicini
 - Dimensione tipica: 100-300 (qui 300)
-- Cattura relazioni semantiche (king - man + woman ≈ queen)
+- Preserva struttura linguistica ("computer is running" vs "running is computer")
 
 ### Allineamento (Orthogonal Procrustes)
 

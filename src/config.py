@@ -18,7 +18,7 @@ import os
 
 # Finestra temporale di analisi
 START_YEAR = 1900
-END_YEAR = 1990  # Inclusivo (decade 1990-1999)
+END_YEAR = 2019  # Inclusivo (per v3 2020 dati disponibili fino al 2019)
 
 # Decenni da analizzare (generati automaticamente)
 # Questo genera: ["1900s", "1910s", "1920s", ..., "1990s"]
@@ -26,9 +26,10 @@ END_YEAR = 1990  # Inclusivo (decade 1990-1999)
 DECADES = [f"{year}s" for year in range(START_YEAR, END_YEAR + 1, 10)]
 
 # Motivazione scelta temporale:
-# - XX secolo offre stabilità linguistica e massimi cambiamenti semantici (tecnologia, società)
+# - XX-XXI secolo: massimi cambiamenti semantici (tecnologia, società, digitale)
 # - Pre-1900: problemi di OCR e ortografia non standardizzata
-# - Post-1990: coverage limitata nel dataset (decade incompleta)
+# - 1900-2019: qualità OCR ottima, coverage Google Books alta
+# - Include rivoluzione digitale (computer, internet, smartphone)
 # - Granularità decennale: ottimale per catturare drift semantico senza rumore
 
 # ============================================================================
@@ -38,15 +39,23 @@ DECADES = [f"{year}s" for year in range(START_YEAR, END_YEAR + 1, 10)]
 # Lingua da analizzare
 LANGUAGE = "eng"  # English
 
-# Versione dataset (v3 2020 è la più recente)
-DATASET_VERSION = "20200217"  # v3 (2020)
+# Versione dataset (v3 2020 è la più recente, include 3-gram con 6881 file!)
+DATASET_VERSION = "20200217"  # v3 (2020) include 3-gram
+
+# Tipo di N-gram da usare (MODIFICATO: da 1 a 3 per CBOW con contesto)
+NGRAM_TYPE = 3  # 3-gram fornisce contesto: 1 parola prima + target + 1 dopo
+                # Sweet spot: contesto reale, dimensione gestibile (~150GB vs 1TB)
+                # Formato v3 2020: 3-00000-of-06881.gz (6881 file totali)
 
 # URL base Google Cloud Storage (V3 2020 usa path diverso!)
-NGRAMS_BASE_URL = "http://storage.googleapis.com/books/ngrams/books/20200217/eng"
+NGRAMS_BASE_URL = f"http://storage.googleapis.com/books/ngrams/books/{DATASET_VERSION}/{LANGUAGE}"
 
-# Numero di file da scaricare (su 24 totali)
-# DATASET COMPLETO: tutti i 24 file (~26GB compressi)
-NUM_FILES_TO_DOWNLOAD = 24
+# Numero di file da scaricare
+# 3-gram ha ~6881 file totali per eng-3
+# I file sono ordinati alfabeticamente: 00000 inizia con simboli, 1000+ ha nomi propri, 2000+ parole comuni
+# Range 2000-2049: parole comuni ad alta frequenza (he, his, her, had, have, has, how, etc.)
+START_FILE_IDX = 2000  # Parti da file 2000 (contiene parole comuni ad altissima frequenza)
+NUM_FILES_TO_DOWNLOAD = 20  # Approccio conservativo: 20 file = ~8GB compressi, ~17GB processati, ~680M righe
 
 # Soglia minima occorrenze nel corpus (dataset già filtrato a 40+)
 MIN_CORPUS_OCCURRENCES = 100

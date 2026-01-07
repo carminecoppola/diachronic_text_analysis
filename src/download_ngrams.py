@@ -38,6 +38,8 @@ from config import (
     LANGUAGE,
     DATASET_VERSION,
     NGRAMS_BASE_URL,
+    NGRAM_TYPE,
+    START_FILE_IDX,
     NUM_FILES_TO_DOWNLOAD,
     ONLY_ALPHABETIC,
     create_directories
@@ -120,21 +122,21 @@ def download_total_counts() -> bool:
 
 def download_and_filter_ngrams() -> bool:
     """
-    Scarica file 1-gram e filtra per anni di interesse.
+    Scarica file 5-gram e filtra per anni di interesse.
     
     Returns:
         True se successo, False altrimenti
     """
     print("\n" + "="*70)
-    print("DOWNLOAD E FILTRAGGIO 1-GRAMS")
+    print(f"DOWNLOAD E FILTRAGGIO {NGRAM_TYPE}-GRAMS")
     print("="*70)
     print(f"Periodo: {START_YEAR}-{END_YEAR}")
-    print(f"File da scaricare: {NUM_FILES_TO_DOWNLOAD} (su 24 totali)")
+    print(f"File da scaricare: {NUM_FILES_TO_DOWNLOAD}")
     print(f"ATTENZIONE: Questo può richiedere molto tempo e spazio disco!")
     print("="*70 + "\n")
     
     # File output
-    output_file = os.path.join(DATA_RAW_DIR, "1gram_filtered.tsv")
+    output_file = os.path.join(DATA_RAW_DIR, f"{NGRAM_TYPE}gram_filtered.tsv")
     
     # Set di anni validi
     valid_years = set(range(START_YEAR, END_YEAR + 1))
@@ -145,12 +147,39 @@ def download_and_filter_ngrams() -> bool:
     # Apri file output
     with open(output_file, 'w', encoding='utf-8') as out_f:
         
-        # Scarica e processa file 1-gram
-        for file_idx in range(NUM_FILES_TO_DOWNLOAD):
+        # Scarica e processa file n-gram (partendo da START_FILE_IDX)
+        for i in range(NUM_FILES_TO_DOWNLOAD):
+            file_idx = START_FILE_IDX + i
             
-            # V3 2020: formato 1-00000-of-00024.gz, 1-00001-of-00024.gz, etc.
-            filename = f"1-{file_idx:05d}-of-00024.gz"
-            url = f"{NGRAMS_BASE_URL}/{filename}"
+            # Nomenclatura diversa per versione dataset:
+            # V3 2020 (1-gram): 1-00000-of-00024.gz
+            # V2 2012 (3-gram): googlebooks-eng-all-3gram-20120701-0.gz
+            
+            if DATASET_VERSION == "20120701":
+                # Versione 2012 (v2) - nomenclatura vecchia
+                if NGRAM_TYPE == 3:
+                    filename = f"googlebooks-eng-all-3gram-{DATASET_VERSION}-{file_idx}.gz"
+                    url = f"http://storage.googleapis.com/books/ngrams/books/{filename}"
+                else:
+                    filename = f"googlebooks-eng-all-{NGRAM_TYPE}gram-{DATASET_VERSION}-{file_idx}.gz"
+                    url = f"http://storage.googleapis.com/books/ngrams/books/{filename}"
+            else:
+                # Versione 2020 (v3) - nomenclatura nuova
+                if NGRAM_TYPE == 1:
+                    total_files = 24
+                    filename = f"{NGRAM_TYPE}-{file_idx:05d}-of-00024.gz"
+                elif NGRAM_TYPE == 3:
+                    total_files = 6881
+                    filename = f"{NGRAM_TYPE}-{file_idx:05d}-of-06881.gz"
+                elif NGRAM_TYPE == 5:
+                    total_files = 589
+                    filename = f"{NGRAM_TYPE}-{file_idx:05d}-of-00589.gz"
+                else:
+                    # Per altri n-gram, usa un valore generico
+                    total_files = 100
+                    filename = f"{NGRAM_TYPE}-{file_idx:05d}.gz"
+                
+                url = f"{NGRAMS_BASE_URL}/{filename}"
             
             # Path temporaneo
             temp_file = os.path.join(DATA_RAW_DIR, filename)
@@ -181,18 +210,35 @@ def download_and_filter_ngrams() -> bool:
                         
                         try:
                             # Formato V3: ngram \t anno1,count1,vol1 \t anno2,count2,vol2 ...
-                            # Esempio: "computer\t1950,42,12\t1951,89,23\t1952,156,34"
-                            # Significa: "computer" appare 42 volte in 12 volumi nel 1950, ecc.
+                            # Per 5-gram: "word1 word2 word3 word4 word5\t1950,42,12\t1951,89,23"
+                            # Per 1-gram: "computer\t1950,42,12\t1951,89,23"
                             parts = line.strip().split('\t')
                             if len(parts) < 2:
                                 continue
                             
                             ngram = parts[0]
                             
-                            # Filtra solo alfabetici (se richiesto)
-                            # Rimuove numeri, punteggiatura, simboli speciali
-                            if ONLY_ALPHABETIC and not ngram.isalpha():
-                                continue
+                            # Per n-gram, filtra solo se tutte le parole sono alfabetiche
+                            if ONLY_ALPHABETIC:
+                                words = ngram.split()
+                                # Per n-gram dovremmo avere esattamente NGRAM_TYPE parole
+                                if len(words) != NGRAM_TYPE:
+                                    continue
+                                # Rimuovi tag POS (es: "computer_NOUN" -> "computer")
+                                # I tag POS sono nel formato: parola_TAG
+                                clean_words = []
+                                for word in words:
+                                    # Rimuovi il tag POS se presente
+                                    if '_' in word:
+                                        word = word.split('_')[0]
+                                    clean_words.append(word)
+                                
+                                # Verifica che tutte le parole (senza tag) siano alfabetiche
+                                if not all(word.isalpha() for word in clean_words):
+                                    continue
+                                
+                                # Usa le parole pulite (senza tag POS) per l'output
+                                ngram = ' '.join(clean_words)
                             
                             # Processa ogni entry anno,count,volume
                             # Ogni entry contiene: anno,match_count,volume_count
@@ -262,12 +308,13 @@ def main():
         print("❌ Errore download total_counts. Impossibile continuare.")
         return 1
     
-    # Step 2: Download e filtra 1-grams
+    # Step 2: Download e filtra n-grams
     if not download_and_filter_ngrams():
         print("❌ Errore download/filtraggio N-grams.")
         return 1
     
     print("\n✅ FASE 1 COMPLETATA")
+    print(f"Dati {NGRAM_TYPE}-gram scaricati e filtrati.")
     print("Prossimo step: eseguire preprocess.py per aggregazione per decennio")
     
     return 0

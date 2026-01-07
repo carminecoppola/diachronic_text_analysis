@@ -4,14 +4,14 @@ FASE 2: Preprocessing e aggregazione per decennio
 Questo script processa i dati filtrati da FASE 1 e li aggrega per decennio.
 
 COSA FA:
-1. Legge data/raw/1gram_filtered.tsv
+1. Legge data/raw/Ngram_filtered.tsv (supporta 1-gram e 5-gram)
 2. Aggrega frequenze per decennio (1900-1909 → 1900s, ecc.)
 3. Normalizza frequenze usando total_counts
 4. Applica filtri di pulizia (lunghezza, lowercase)
 5. Salva file separati per ogni decennio in data/processed/
 
 INPUT:
-- data/raw/1gram_filtered.tsv
+- data/raw/1gram_filtered.tsv o data/raw/5gram_filtered.tsv
 - data/raw/total_counts.txt
 
 OUTPUT:
@@ -22,6 +22,11 @@ OUTPUT:
 
 Formato output: ogni file contiene righe con:
 word \t normalized_frequency
+
+NOTA PER 5-GRAM:
+Per 5-gram, ogni riga contiene "word1 word2 word3 word4 word5".
+Questo script estrae e aggrega TUTTE le 5 parole separatamente,
+in modo che il vocabolario contenga parole singole.
 """
 
 import os
@@ -37,6 +42,7 @@ from config import (
     START_YEAR,
     END_YEAR,
     DECADES,
+    NGRAM_TYPE,
     MIN_TOKEN_LENGTH,
     MAX_TOKEN_LENGTH,
     LOWERCASE,
@@ -109,7 +115,7 @@ def aggregate_by_decade(input_file: str, total_counts: Dict[int, int]) -> Dict[s
                 if len(parts) != 4:
                     continue
                 
-                word, year_str, match_count_str, _ = parts
+                ngram, year_str, match_count_str, _ = parts
                 year = int(year_str)
                 match_count = int(match_count_str)
                 
@@ -119,21 +125,29 @@ def aggregate_by_decade(input_file: str, total_counts: Dict[int, int]) -> Dict[s
                 if decade not in decade_data:
                     continue
                 
-                # Applica filtri preprocessing
-                # 1. Lowercase
-                if LOWERCASE:
-                    word = word.lower()
+                # Per 5-gram: estrai tutte le 5 parole
+                # Per 1-gram: una sola parola
+                words = ngram.split() if NGRAM_TYPE > 1 else [ngram]
                 
-                # 2. Lunghezza
-                if len(word) < MIN_TOKEN_LENGTH or len(word) > MAX_TOKEN_LENGTH:
-                    continue
-                
-                # 3. Solo alfabetici (già filtrato in download, ma ricontrolliamo)
-                if not word.isalpha():
-                    continue
-                
-                # Aggrega
-                decade_data[decade][word] += match_count
+                # Processa ogni parola nell'n-gram
+                for word in words:
+                    # Applica filtri preprocessing
+                    # 1. Lowercase
+                    if LOWERCASE:
+                        word = word.lower()
+                    
+                    # 2. Lunghezza
+                    if len(word) < MIN_TOKEN_LENGTH or len(word) > MAX_TOKEN_LENGTH:
+                        continue
+                    
+                    # 3. Solo alfabetici
+                    if not word.isalpha():
+                        continue
+                    
+                    # Aggrega (dividiamo il count equamente tra le parole per 5-gram)
+                    # Ogni parola nel 5-gram contribuisce con count/5 alla sua frequenza
+                    count_per_word = match_count // max(len(words), 1)
+                    decade_data[decade][word] += count_per_word
             
             except (ValueError, IndexError):
                 continue
@@ -252,13 +266,15 @@ def main():
     # Crea directory
     create_directories()
     
-    # File input
-    input_file = os.path.join(DATA_RAW_DIR, "1gram_filtered.tsv")
+    # File input (usa NGRAM_TYPE da config)
+    input_file = os.path.join(DATA_RAW_DIR, f"{NGRAM_TYPE}gram_filtered.tsv")
     
     if not os.path.exists(input_file):
         print(f"❌ File input non trovato: {input_file}")
         print("Eseguire prima download_ngrams.py (FASE 1)")
         return 1
+    
+    print(f"Elaborazione file {NGRAM_TYPE}-gram: {input_file}")
     
     # Step 1: Carica total_counts
     total_counts = load_total_counts()

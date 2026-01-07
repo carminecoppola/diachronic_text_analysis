@@ -70,7 +70,7 @@ LOWERCASE = True
 # Dimensione vocabolario (top-K parole più frequenti)
 # 50K è un buon trade-off tra copertura (parole comuni) e gestibilità computazionale
 # Con ~15M parole uniche totali, 50K cattura le più stabili attraverso il secolo
-VOCAB_SIZE = 50000
+VOCAB_SIZE = 50001  # Include UNK token (50000 + 1)
 
 # Frequenza minima globale per inclusione nel vocabolario
 # Filtra parole troppo rare che potrebbero essere errori OCR o nomi propri
@@ -92,17 +92,17 @@ EMBEDDING_DIM = 300
 # Finestra di contesto per CBOW/Skip-gram
 # CONTEXT_WINDOW=5 significa: considera 5 parole prima + 5 dopo = 10 parole totali
 # Finestre più grandi catturano relazioni semantiche più distanti
-CONTEXT_WINDOW = 5
+CONTEXT_WINDOW = 3
 
 # Negative sampling
 # Per ogni parola positiva, campiona 5 parole negative (per loss contrastivo)
 # Trade-off: più samples = training più lento ma migliore qualità
-NEGATIVE_SAMPLES = 5
+NEGATIVE_SAMPLES = 3
 
 # Training parameters
 BATCH_SIZE = 512        # Numero di esempi per batch (più alto = più veloce, più RAM)
 LEARNING_RATE = 0.025   # Learning rate iniziale (standard per Word2Vec)
-EPOCHS = 10             # Numero di passaggi completi sul dataset
+EPOCHS = 1             # Numero di passaggi completi sul dataset
 
 # ============================================================================
 # PATH DATI

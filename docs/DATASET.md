@@ -1,52 +1,46 @@
-# Dataset: Google Books N-grams v3
+# Dataset: Google Books 3-grams v3 (2020)
 
 ## Panoramica
 
-**Google Books N-grams v3 (2020)**: corpus derivato da ~8% di tutti i libri pubblicati, con frequenze di 3-gram dal 1500 al 2019.
-
-**Periodo analizzato**: 1900-2019 (120 anni, 12 decenni)
-
-**Tipo**: 3-gram (sequenze di 3 parole consecutive) per training CBOW con contesto reale
+**Fonte**: Google Books (~8% libri pubblicati)  
+**Periodo**: 1900-2019 (12 decenni)  
+**Formato**: 3-gram (sequenze di 3 parole)
 
 ---
 
-## Struttura Dati
+## Struttura File
 
-### Posizione File
+### Raw (15GB)
+`data/raw/3gram_filtered.tsv` - 551M righe 3-gram
 
-Storage esterno (symlink):
+Formato:
 ```
-data/ → /storage/external_01/diachronic_text_analysis/data/
-├── raw/           # ~27GB (file originali + filtrato)
-└── processed/     # 3.1GB (10 decenni + vocabolario)
+word1 word2 word3    anno    count    volumes
+view of the          1916    7        7
 ```
+
+### Processed (3.1GB)
+`data/processed/{decade}.txt` - 12 file (1900s-2010s)
+
+Formato:
+```
+word1 word2 word3    frequenza
+view of the          1170392.0
+very truly yours     1016079.0
+```
+
+**IMPORTANTE**: Mantiene **3-gram completi** per preservare contesto reale.
+
+### Vocabolario
+`data/processed/vocab.json` - 50,002 parole singole estratte dai 3-gram
 
 ---
 
-## File del Dataset
+## Statistiche
 
-### 1. File Originali (eliminati dopo processing)
-
-**20 file compressi** scaricati da Google Cloud Storage:
-- `3-02000-of-06881.gz` → `3-02019-of-06881.gz`
-- ~8GB totali compressi
-- Range: file 2000-2019 (parole comuni ad alta frequenza)
-- Totale file disponibili: 6881 (organizzati alfabeticamente)
-
-**Formato V3 compatto con POS tags**:
-```
-word1_POS word2_POS word3_POS    anno1,count1,vol1    anno2,count2,vol2    ...
-```
-
-**Esempio originale**:
-```
-computer_NOUN is_VERB running_VERB    1990,150,12    1995,300,25    2000,450,40
-```
-
-**Dopo rimozione POS tags**:
-```
-computer is running    1990,150,12    1995,300,25    2000,450,40
-```
+- **3-gram unici per decade**: 677K-1.4M
+- **Parole uniche totali**: 145,846
+- **Vocabolario finale**: 50,002 (top frequenti)
 
 **Organizzazione alfabetica dei 6881 file**:
 - File 0-999: simboli, punteggiatura → scartati

@@ -21,12 +21,14 @@ OUTPUT:
 - data/processed/1990s.txt
 
 Formato output: ogni file contiene righe con:
-word \t normalized_frequency
+3gram \t normalized_frequency
 
-NOTA PER 5-GRAM:
-Per 5-gram, ogni riga contiene "word1 word2 word3 word4 word5".
-Questo script estrae e aggrega TUTTE le 5 parole separatamente,
-in modo che il vocabolario contenga parole singole.
+Dove 3gram è nel formato "word1 word2 word3" (3 parole separate da spazio).
+Questo MANTIENE il contesto originale per l'analisi diacronica.
+
+NOTA IMPORTANTE:
+A differenza della versione precedente, NON spacchetta i 3-gram in parole singole.
+Il contesto delle sequenze viene preservato per il training CBOW.
 """
 
 import os
@@ -84,14 +86,15 @@ def load_total_counts() -> Dict[int, int]:
 
 def aggregate_by_decade(input_file: str, total_counts: Dict[int, int]) -> Dict[str, Dict[str, float]]:
     """
-    Aggrega n-gram per decennio.
+    Aggrega n-gram per decennio mantenendo il contesto.
     
     Args:
         input_file: Path del file filtrato
         total_counts: Dizionario total counts per anno
     
     Returns:
-        Dizionario {decennio: {word: normalized_freq}}
+        Dizionario {decennio: {ngram: normalized_freq}}
+        dove ngram è "word1 word2 word3" per 3-gram
     """
     print(f"\nAggregazione per decennio da {input_file}...")
     
@@ -125,29 +128,29 @@ def aggregate_by_decade(input_file: str, total_counts: Dict[int, int]) -> Dict[s
                 if decade not in decade_data:
                     continue
                 
-                # Per 5-gram: estrai tutte le 5 parole
-                # Per 1-gram: una sola parola
-                words = ngram.split() if NGRAM_TYPE > 1 else [ngram]
+                # NUOVO: Mantieni i 3-gram completi per preservare il contesto
+                # Non spacchettare in parole singole!
+                words = ngram.split()
                 
-                # Processa ogni parola nell'n-gram
+                # Filtra 3-gram: tutte le 3 parole devono essere valide
+                valid = True
                 for word in words:
-                    # Applica filtri preprocessing
-                    # 1. Lowercase
-                    if LOWERCASE:
-                        word = word.lower()
-                    
-                    # 2. Lunghezza
-                    if len(word) < MIN_TOKEN_LENGTH or len(word) > MAX_TOKEN_LENGTH:
-                        continue
-                    
-                    # 3. Solo alfabetici
-                    if not word.isalpha():
-                        continue
-                    
-                    # Aggrega (dividiamo il count equamente tra le parole per 5-gram)
-                    # Ogni parola nel 5-gram contribuisce con count/5 alla sua frequenza
-                    count_per_word = match_count // max(len(words), 1)
-                    decade_data[decade][word] += count_per_word
+                    word_check = word.lower() if LOWERCASE else word
+                    if (len(word_check) < MIN_TOKEN_LENGTH or 
+                        len(word_check) > MAX_TOKEN_LENGTH or 
+                        not word_check.isalpha()):
+                        valid = False
+                        break
+                
+                if not valid:
+                    continue
+                
+                # Normalizza 3-gram (lowercase se richiesto)
+                if LOWERCASE:
+                    ngram = ' '.join([w.lower() for w in words])
+                
+                # Aggrega il 3-gram completo (mantiene contesto)
+                decade_data[decade][ngram] += match_count
             
             except (ValueError, IndexError):
                 continue

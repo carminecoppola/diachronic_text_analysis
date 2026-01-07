@@ -5,10 +5,11 @@ Questo script costruisce un vocabolario COMUNE a tutti i decenni.
 
 COSA FA:
 1. Legge tutti i file processed (1900s.txt, ..., 1990s.txt)
-2. Calcola frequenza totale di ogni parola (somma su tutti i decenni)
-3. Seleziona top-K parole più frequenti
-4. Crea mapping word → index
-5. Salva vocabolario in formato JSON
+2. Estrae parole singole dai 3-gram ("word1 word2 word3" → 3 parole)
+3. Calcola frequenza totale di ogni parola (somma su tutti i decenni)
+4. Seleziona top-K parole più frequenti
+5. Crea mapping word → index
+6. Salva vocabolario in formato JSON
 
 PERCHÉ VOCABOLARIO COMUNE:
 Per confrontare embeddings tra decenni, serve che le stesse parole
@@ -16,7 +17,7 @@ siano presenti in tutti i periodi. Parole che appaiono solo in un
 decennio non possono essere confrontate.
 
 INPUT:
-- data/processed/*.txt (tutti i decenni)
+- data/processed/*.txt (tutti i decenni, formato: "word1 word2 word3\tfreq")
 
 OUTPUT:
 - data/processed/vocab.json: {word: index}
@@ -52,26 +53,34 @@ from config import (
 
 def load_decade_frequencies(decade: str) -> Dict[str, float]:
     """
-    Carica frequenze di un decennio.
+    Carica frequenze di un decennio estraendo parole singole dai 3-gram.
     
     Args:
         decade: Nome decennio (es. "1990s")
     
     Returns:
-        Dizionario {word: frequency}
+        Dizionario {word: frequency} con parole singole
     """
     file_path = get_processed_file_path(decade)
     
-    word_freq = {}
+    word_freq = defaultdict(float)
     
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
             parts = line.strip().split('\t')
             if len(parts) == 2:
-                word, freq_str = parts
-                word_freq[word] = float(freq_str)
+                ngram, freq_str = parts
+                freq = float(freq_str)
+                
+                # Estrai le 3 parole dal 3-gram
+                words = ngram.split()
+                
+                # Ogni parola nel 3-gram contribuisce alla sua frequenza
+                # Dividiamo equamente la frequenza tra le 3 parole
+                for word in words:
+                    word_freq[word] += freq / len(words)
     
-    return word_freq
+    return dict(word_freq)
 
 
 def compute_total_frequencies() -> Dict[str, float]:

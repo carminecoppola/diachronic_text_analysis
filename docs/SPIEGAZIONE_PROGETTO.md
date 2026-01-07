@@ -2,101 +2,46 @@
 
 ## Obiettivo
 
-**Studiare l'evoluzione del significato di parole** (es. "gay", "computer") attraverso il XX secolo, usando:
-- **Word embeddings** (CBOW)
-- **Allineamenti** (Orthogonal Procrustes)
-- **Metriche** (cosine similarity, semantic shift)
+Studiare l'evoluzione semantica delle parole nel XX-XXI secolo usando word embeddings (CBOW) allenati su Google Books N-grams.
 
 ---
 
-## Pipeline (10 Fasi)
+## Pipeline
 
-```
-FASE 1: Download Dataset
-   ├─ Scarica Google Books 3-grams v3 (2020) da Google Cloud Storage
-   ├─ URL: http://storage.googleapis.com/books/ngrams/books/20200217/eng/3-XXXXX-of-06881.gz
-   ├─ File scaricati: 3-02000 to 3-02019 (20 file, range parole comuni)
-   ├─ Rimozione POS tags (computer_NOUN → computer)
-   └─ Output: data/raw/3gram_filtered.tsv (15GB, ~680M righe)
+**FASE 1: Download** ✅
+- Scarica Google Books 3-grams (v3 2020)
+- Output: `data/raw/3gram_filtered.tsv` (15GB, 551M righe)
 
-FASE 2: Preprocessing
-   ├─ Filtra anni 1900-2019 (120 anni)
-   ├─ Suddividi in 12 decenni (1900s-2010s)
-   ├─ Split 3-gram in (word1, word2, word3)
-   ├─ Aggrega frequenze per decade
-   └─ Output: 12 file data/processed/{decade}.txt
+**FASE 2: Preprocessing** ✅  
+- Aggrega 3-gram per decennio (1900s-2010s)
+- **Mantiene 3-gram completi** per preservare contesto
+- Output: `data/processed/{decade}.txt` - formato: `"word1 word2 word3\tfreq"`
 
-FASE 3: Costruzione Vocabolario
-   ├─ Aggrega frequenze da tutti i decenni
-   ├─ Seleziona parole più frequenti
-   └─ Output: data/processed/vocab.json
+**FASE 3: Vocabolario** ✅
+- Estrae parole singole dai 3-gram
+- Top 50K parole più frequenti
+- Output: `data/processed/vocab.json`
 
-FASE 4: PyTorch Dataset
-   ├─ Usa 3-gram per contesto CBOW: TARGET = word2, CONTEXT = [word1, word3]
-   ├─ Negative sampling per training efficiente
-   └─ Output: dataset.py con CBOWNgramDataset
+**FASE 4: PyTorch Dataset** 🔄
+- CBOW con contesto reale: TARGET=word2, CONTEXT=[word1, word3]
+- Output: `src/dataset.py`
 
-FASE 5: Training CBOW
-   ├─ 12 modelli indipendenti (uno per decennio 1900s-2010s)
-   ├─ Hyperparams: dim=300, context_size=1 (parola prima+dopo), epochs=5-10
-   └─ Output: models/cbow_1900s.pt ... models/cbow_2010s.pt
+**FASE 5: Training CBOW**
+- 12 modelli (uno per decennio)
+- Output: `models/cbow_{decade}.pt`
 
-FASE 6: Allineamento Embeddings
-   ├─ Orthogonal Procrustes per allineare decenni consecutivi
-   ├─ Baseline: 1900s (riferimento fisso)
-   └─ Output: models/aligned_*.npy
+**FASE 6: Allineamento**
+- Orthogonal Procrustes tra decenni
 
-FASE 7: Calcolo Metriche
-   ├─ Cosine similarity tra decenni
-   ├─ Semantic shift (distanza cumulativa)
-   └─ Output: results/metrics.csv
-
-FASE 8: Visualizzazioni
-   ├─ Plot evoluzione singole parole
-   ├─ Heatmap shift temporale
-   ├─ t-SNE spazio semantico
-   └─ Output: plots/*.png
-
-FASE 9: Nearest Neighbors Analysis
-   ├─ Top-10 parole simili per decennio
-   ├─ Shift vicinato semantico
-   └─ Output: results/neighbors.csv
-
-FASE 10: Analisi Tematiche
-   ├─ Cluster parole per topic
-   ├─ Evoluzione temi nel tempo
-   └─ Output: results/themes.csv
-```
+**FASE 7-10: Analisi**
+- Metriche, visualizzazioni, nearest neighbors
 
 ---
 
-## Stato Avanzamento
+## Note Importanti
 
-| Fase | Status | Note |
-|------|--------|------|
-| 1. Download | ✅ COMPLETATA | 551M righe 3-gram, 15GB |
-| 2. Preprocessing | ✅ COMPLETATA | 12 decenni, 74K-134K parole/decennio |
-| 3. Vocabolario | ✅ COMPLETATA | 50,002 parole comuni |
-| 4. PyTorch Dataset | 🔄 PROSSIMA | Test CBOWNgramDataset con 3-gram |
-| 5. Training CBOW | IN ATTESA | 12 modelli (1900s-2010s) |
-| 6. Allineamento | - | |
-| 7-10 | - | |
-
----
-
-## Base Teorica
-
-### Word Embeddings (CBOW)
-
-**Continuous Bag-of-Words** impara rappresentazioni dense usando 3-gram:
-```
-3-gram: "computer is running"
-Context: ["computer", "running"]  (parola prima + parola dopo)
-Target: "is"  (parola centrale)
-
-Obiettivo: predire parola centrale dal suo contesto immediato
-→ Rete neurale impara embedding che cattura co-occorrenze reali
-```
+### 3-gram e Contesto
+I file processati mantengono i **3-gram completi** (es. "view of the"), non parole singole. Questo preserva il contesto originale per il training CBOW, essenziale per catturare co-occorrenze reali.
 
 **Vantaggi con 3-gram**:
 - Contesto reale da Google Books (non finestre artificiali)

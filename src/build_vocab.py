@@ -29,9 +29,7 @@ Formato vocab.json:
   "the": 1,
   "of": 2,
   ...
-}
-"""
-
+}"""
 import os
 import sys
 import json
@@ -205,7 +203,7 @@ def save_vocabulary(vocab: Dict[str, int], total_freq: Dict[str, float]):
 
 
 def main():
-    """Main function."""
+    # Main function.
     
     print("="*70)
     print("COSTRUZIONE VOCABOLARIO COMUNE")
@@ -245,4 +243,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main())  

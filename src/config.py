@@ -101,7 +101,7 @@ EMBEDDING_DIM = 300
 # Finestra di contesto per CBOW/Skip-gram
 # CONTEXT_WINDOW=5 significa: considera 5 parole prima + 5 dopo = 10 parole totali
 # Finestre più grandi catturano relazioni semantiche più distanti
-CONTEXT_WINDOW = 3
+CONTEXT_WINDOW = 1
 
 # Negative sampling
 # Per ogni parola positiva, campiona 5 parole negative (per loss contrastivo)
@@ -111,7 +111,7 @@ NEGATIVE_SAMPLES = 3
 # Training parameters
 BATCH_SIZE = 512        # Numero di esempi per batch (più alto = più veloce, più RAM)
 LEARNING_RATE = 0.025   # Learning rate iniziale (standard per Word2Vec)
-EPOCHS = 1             # Numero di passaggi completi sul dataset
+EPOCHS = 3             # Numero di passaggi completi sul dataset
 
 # ============================================================================
 # PATH DATI

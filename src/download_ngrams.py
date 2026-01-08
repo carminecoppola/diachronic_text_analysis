@@ -39,7 +39,7 @@ from config import (
     DATASET_VERSION,
     NGRAMS_BASE_URL,
     NGRAM_TYPE,
-    START_FILE_IDX,
+    FILE_RANGES,
     NUM_FILES_TO_DOWNLOAD,
     ONLY_ALPHABETIC,
     create_directories
@@ -144,12 +144,20 @@ def download_and_filter_ngrams() -> bool:
     total_lines_processed = 0
     total_lines_kept = 0
     
+    # Genera lista di file da scaricare dai range
+    files_to_download = []
+    for start, end in FILE_RANGES:
+        for file_idx in range(start, end):
+            files_to_download.append(file_idx)
+    
+    print(f"\nScaricamento {len(files_to_download)} file da {len(FILE_RANGES)} range diversi")
+    print(f"Range: {FILE_RANGES}")
+    
     # Apri file output
     with open(output_file, 'w', encoding='utf-8') as out_f:
         
-        # Scarica e processa file n-gram (partendo da START_FILE_IDX)
-        for i in range(NUM_FILES_TO_DOWNLOAD):
-            file_idx = START_FILE_IDX + i
+        # Scarica e processa file n-gram
+        for i, file_idx in enumerate(files_to_download):
             
             # Nomenclatura diversa per versione dataset:
             # V3 2020 (1-gram): 1-00000-of-00024.gz
@@ -172,8 +180,8 @@ def download_and_filter_ngrams() -> bool:
                     total_files = 6881
                     filename = f"{NGRAM_TYPE}-{file_idx:05d}-of-06881.gz"
                 elif NGRAM_TYPE == 5:
-                    total_files = 589
-                    filename = f"{NGRAM_TYPE}-{file_idx:05d}-of-00589.gz"
+                    total_files = 19423
+                    filename = f"{NGRAM_TYPE}-{file_idx:05d}-of-19423.gz"
                 else:
                     # Per altri n-gram, usa un valore generico
                     total_files = 100
@@ -184,7 +192,7 @@ def download_and_filter_ngrams() -> bool:
             # Path temporaneo
             temp_file = os.path.join(DATA_RAW_DIR, filename)
             
-            print(f"\n[{file_idx+1}/{NUM_FILES_TO_DOWNLOAD}] Elaborazione {filename}...")
+            print(f"\n[{i+1}/{len(files_to_download)}] Elaborazione {filename} (file index {file_idx})...")
             
             # Download
             if not os.path.exists(temp_file):

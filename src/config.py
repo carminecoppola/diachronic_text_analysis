@@ -42,20 +42,41 @@ LANGUAGE = "eng"  # English
 # Versione dataset (v3 2020 è la più recente, include 3-gram con 6881 file!)
 DATASET_VERSION = "20200217"  # v3 (2020) include 3-gram
 
-# Tipo di N-gram da usare (MODIFICATO: da 1 a 3 per CBOW con contesto)
-NGRAM_TYPE = 3  # 3-gram fornisce contesto: 1 parola prima + target + 1 dopo
-                # Sweet spot: contesto reale, dimensione gestibile (~150GB vs 1TB)
-                # Formato v3 2020: 3-00000-of-06881.gz (6881 file totali)
+# Tipo di N-gram da usare
+# 3-gram: 1 parola prima + target + 1 dopo (CONTEXT_WINDOW=1)
+# 5-gram: 2 parole prima + target + 2 dopo (CONTEXT_WINDOW=2) - PIÙ CONTESTO!
+NGRAM_TYPE = 5  # Cambia a 3 per usare i 3-gram esistenti
 
 # URL base Google Cloud Storage (V3 2020 usa path diverso!)
 NGRAMS_BASE_URL = f"http://storage.googleapis.com/books/ngrams/books/{DATASET_VERSION}/{LANGUAGE}"
 
-# Numero di file da scaricare
-# 3-gram ha ~6881 file totali per eng-3
-# I file sono ordinati alfabeticamente: 00000 inizia con simboli, 1000+ ha nomi propri, 2000+ parole comuni
-# Range 2000-2049: parole comuni ad alta frequenza (he, his, her, had, have, has, how, etc.)
-START_FILE_IDX = 2000  # Parti da file 2000 (contiene parole comuni ad altissima frequenza)
-NUM_FILES_TO_DOWNLOAD = 20  # Approccio conservativo: 20 file = ~8GB compressi, ~17GB processati, ~680M righe
+# Configurazione download per varietà (non solo file che iniziano con 'v')
+# Strategia: campiona da diversi range alfabetici per massimizzare la diversità
+# File ranges per 5-gram (circa 8800 file totali):
+#   0000-1000: simboli e numeri
+#   1000-2000: nomi propri  
+#   2000-4000: parole comuni (a-h)
+#   4000-6000: parole comuni (i-r)
+#   6000-8000: parole comuni (s-z)
+
+if NGRAM_TYPE == 3:
+    # 3-gram: usa file esistenti
+    FILE_RANGES = [(2000, 2020)]  # File già scaricati
+    NUM_FILES_TO_DOWNLOAD = 20
+elif NGRAM_TYPE == 5:
+    # 5-gram: campiona da diversi range per varietà
+    FILE_RANGES = [
+        (2000, 2005),  # Range 'h-i' (5 file)
+        (3000, 3005),  # Range 'k-l' (5 file)  
+        (4000, 4005),  # Range 'm-n' (5 file)
+        (5000, 5005),  # Range 'o-p' (5 file)
+        (6000, 6005),  # Range 'r-s' (5 file)
+        (7000, 7005),  # Range 't-u' (5 file)
+    ]
+    NUM_FILES_TO_DOWNLOAD = 30  # 6 range × 5 file = 30 file totali
+else:
+    FILE_RANGES = [(2000, 2020)]
+    NUM_FILES_TO_DOWNLOAD = 20
 
 # Soglia minima occorrenze nel corpus (dataset già filtrato a 40+)
 MIN_CORPUS_OCCURRENCES = 100
@@ -99,9 +120,10 @@ UNK_TOKEN = "<UNK>"
 EMBEDDING_DIM = 300
 
 # Finestra di contesto per CBOW/Skip-gram
-# CONTEXT_WINDOW=5 significa: considera 5 parole prima + 5 dopo = 10 parole totali
-# Finestre più grandi catturano relazioni semantiche più distanti
-CONTEXT_WINDOW = 1
+# Deve corrispondere al tipo di N-gram:
+# - 3-gram → CONTEXT_WINDOW = 1 (1 parola prima + target + 1 dopo)
+# - 5-gram → CONTEXT_WINDOW = 2 (2 parole prima + target + 2 dopo)
+CONTEXT_WINDOW = 2 if NGRAM_TYPE == 5 else 1
 
 # Negative sampling
 # Per ogni parola positiva, campiona 5 parole negative (per loss contrastivo)
@@ -122,11 +144,14 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Directory dati (NON in Git)
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
-DATA_RAW_DIR = os.path.join(DATA_DIR, "raw")
-DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed")
 
-# Directory modelli (NON in Git)
-MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
+# Directory separate per 3-gram e 5-gram
+NGRAM_SUFFIX = f"{NGRAM_TYPE}gram"
+DATA_RAW_DIR = os.path.join(DATA_DIR, "raw", NGRAM_SUFFIX)
+DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed", NGRAM_SUFFIX)
+
+# Directory modelli (separate per tipo di n-gram)
+MODELS_DIR = os.path.join(PROJECT_ROOT, "models", NGRAM_SUFFIX)
 
 # Directory plot (NON in Git)
 PLOTS_DIR = os.path.join(PROJECT_ROOT, "plots")

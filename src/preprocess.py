@@ -4,30 +4,33 @@ FASE 2: Preprocessing e aggregazione per decennio
 Questo script processa i dati filtrati da FASE 1 e li aggrega per decennio.
 
 COSA FA:
-1. Legge data/raw/Ngram_filtered.tsv (supporta 1-gram e 5-gram)
+1. Legge data/raw/{NGRAM_TYPE}gram_filtered.tsv (supporta 3-gram e 5-gram)
 2. Aggrega frequenze per decennio (1900-1909 → 1900s, ecc.)
 3. Normalizza frequenze usando total_counts
 4. Applica filtri di pulizia (lunghezza, lowercase)
-5. Salva file separati per ogni decennio in data/processed/
+5. Salva file separati per ogni decennio in data/processed/{NGRAM_TYPE}gram/
 
 INPUT:
-- data/raw/1gram_filtered.tsv o data/raw/5gram_filtered.tsv
-- data/raw/total_counts.txt
+- data/raw/{NGRAM_TYPE}gram/Ngram_filtered.tsv
+- data/raw/{NGRAM_TYPE}gram/total_counts.txt
 
 OUTPUT:
-- data/processed/1900s.txt
-- data/processed/1910s.txt
+- data/processed/{NGRAM_TYPE}gram/1900s.txt
+- data/processed/{NGRAM_TYPE}gram/1910s.txt
 - ...
-- data/processed/1990s.txt
+- data/processed/{NGRAM_TYPE}gram/2010s.txt
 
 Formato output: ogni file contiene righe con:
-3gram \t normalized_frequency
+ngram \t normalized_frequency
 
-Dove 3gram è nel formato "word1 word2 word3" (3 parole separate da spazio).
+Dove ngram è nel formato:
+- 3-gram: "word1 word2 word3" (3 parole separate da spazio)
+- 5-gram: "word1 word2 word3 word4 word5" (5 parole separate da spazio)
+
 Questo MANTIENE il contesto originale per l'analisi diacronica.
 
 NOTA IMPORTANTE:
-A differenza della versione precedente, NON spacchetta i 3-gram in parole singole.
+NON spacchetta gli n-gram in parole singole.
 Il contesto delle sequenze viene preservato per il training CBOW.
 """
 
@@ -68,12 +71,20 @@ def load_total_counts() -> Dict[int, int]:
     
     try:
         with open(TOTAL_COUNTS_FILE, 'r', encoding='utf-8') as f:
-            for line in f:
-                parts = line.strip().split('\t')
-                if len(parts) >= 2:
-                    year = int(parts[0])
-                    count = int(parts[1])
-                    total_counts[year] = count
+            content = f.read().strip()
+            # V3 format: una riga con valori separati da virgole
+            # Formato: year,match_count,page_count,volume_count ripetuto
+            parts = content.split(',')
+            
+            # Processa a gruppi di 4 (year, match_count, page_count, volume_count)
+            for i in range(0, len(parts), 4):
+                if i + 3 < len(parts):
+                    try:
+                        year = int(parts[i].strip())
+                        match_count = int(parts[i+1].strip())
+                        total_counts[year] = match_count
+                    except ValueError:
+                        continue
     
     except FileNotFoundError:
         print(f"⚠ File total_counts non trovato: {TOTAL_COUNTS_FILE}")
@@ -128,11 +139,11 @@ def aggregate_by_decade(input_file: str, total_counts: Dict[int, int]) -> Dict[s
                 if decade not in decade_data:
                     continue
                 
-                # NUOVO: Mantieni i 3-gram completi per preservare il contesto
+                # Mantieni gli n-gram completi per preservare il contesto
                 # Non spacchettare in parole singole!
                 words = ngram.split()
                 
-                # Filtra 3-gram: tutte le 3 parole devono essere valide
+                # Filtra n-gram: tutte le parole devono essere valide
                 valid = True
                 for word in words:
                     word_check = word.lower() if LOWERCASE else word
@@ -145,11 +156,11 @@ def aggregate_by_decade(input_file: str, total_counts: Dict[int, int]) -> Dict[s
                 if not valid:
                     continue
                 
-                # Normalizza 3-gram (lowercase se richiesto)
+                # Normalizza n-gram (lowercase se richiesto)
                 if LOWERCASE:
                     ngram = ' '.join([w.lower() for w in words])
                 
-                # Aggrega il 3-gram completo (mantiene contesto)
+                # Aggrega l'n-gram completo (mantiene contesto)
                 decade_data[decade][ngram] += match_count
             
             except (ValueError, IndexError):

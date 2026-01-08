@@ -4,8 +4,8 @@ FASE 3: Costruzione vocabolario comune
 Questo script costruisce un vocabolario COMUNE a tutti i decenni.
 
 COSA FA:
-1. Legge tutti i file processed (1900s.txt, ..., 1990s.txt)
-2. Estrae parole singole dai 3-gram ("word1 word2 word3" → 3 parole)
+1. Legge tutti i file processed (1900s.txt, ..., 2010s.txt)
+2. Estrae parole singole dagli n-gram ("word1 word2..." → N parole)
 3. Calcola frequenza totale di ogni parola (somma su tutti i decenni)
 4. Seleziona top-K parole più frequenti
 5. Crea mapping word → index
@@ -17,11 +17,11 @@ siano presenti in tutti i periodi. Parole che appaiono solo in un
 decennio non possono essere confrontate.
 
 INPUT:
-- data/processed/*.txt (tutti i decenni, formato: "word1 word2 word3\tfreq")
+- data/processed/{NGRAM_TYPE}gram/*.txt (tutti i decenni, formato: "word1 word2...\tfreq")
 
 OUTPUT:
-- data/processed/vocab.json: {word: index}
-- data/processed/vocab_stats.txt: statistiche vocabolario
+- data/processed/{NGRAM_TYPE}gram/vocab.json: {word: index}
+- data/processed/{NGRAM_TYPE}gram/vocab_stats.txt: statistiche vocabolario
 
 Formato vocab.json:
 {
@@ -70,11 +70,11 @@ def load_decade_frequencies(decade: str) -> Dict[str, float]:
                 ngram, freq_str = parts
                 freq = float(freq_str)
                 
-                # Estrai le 3 parole dal 3-gram
+                # Estrai le parole dall'n-gram
                 words = ngram.split()
                 
-                # Ogni parola nel 3-gram contribuisce alla sua frequenza
-                # Dividiamo equamente la frequenza tra le 3 parole
+                # Ogni parola nell'n-gram contribuisce alla sua frequenza
+                # Dividiamo equamente la frequenza tra le parole
                 for word in words:
                     word_freq[word] += freq / len(words)
     

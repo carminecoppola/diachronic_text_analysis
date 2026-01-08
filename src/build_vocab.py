@@ -37,208 +37,123 @@ from collections import defaultdict
 from typing import Dict, List, Tuple
 
 # Import config
-from config import (
-    DATA_PROCESSED_DIR,
-    VOCAB_FILE,
-    VOCAB_SIZE,
-    MIN_VOCAB_FREQ,
-    UNK_TOKEN,
-    DECADES,
-    get_processed_file_path,
-    create_directories
-)
+from config import (VOCAB_FILE, VOCAB_SIZE, UNK_TOKEN, DECADES, 
+                    get_processed_file_path)
 
 
-def load_decade_frequencies(decade: str) -> Dict[str, float]:
+def load_decade_frequencies(decade: str) -> Dict[str, int]:
     """
-    Carica frequenze di un decennio estraendo parole singole dai 3-gram.
-    
-    Args:
-        decade: Nome decennio (es. "1990s")
-    
-    Returns:
-        Dizionario {word: frequency} con parole singole
+    Carica frequenze parole da un decennio.
+    Formato: ogni riga = un n-gram, ogni parola conta come 1 occorrenza.
     """
-    file_path = get_processed_file_path(decade)
+    word_freq = defaultdict(int)
     
-    word_freq = defaultdict(float)
-    
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(get_processed_file_path(decade), 'r', encoding='utf-8') as f:
         for line in f:
-            parts = line.strip().split('\t')
-            if len(parts) == 2:
-                ngram, freq_str = parts
-                freq = float(freq_str)
-                
-                # Estrai le parole dall'n-gram
-                words = ngram.split()
-                
-                # Ogni parola nell'n-gram contribuisce alla sua frequenza
-                # Dividiamo equamente la frequenza tra le parole
-                for word in words:
-                    word_freq[word] += freq / len(words)
+            ngram_text = line.strip()
+            if ngram_text:
+                for word in ngram_text.split():
+                    word_freq[word] += 1
     
     return dict(word_freq)
 
 
-def compute_total_frequencies() -> Dict[str, float]:
-    """
-    Calcola frequenze totali (somma su tutti i decenni).
-    
-    Returns:
-        Dizionario {word: total_frequency}
-    """
+def compute_total_frequencies() -> Dict[str, int]:
+    """Calcola frequenze totali sommando tutti i decenni."""
     print("Caricamento frequenze da tutti i decenni...")
-    
-    total_freq = defaultdict(float)
+    total_freq = defaultdict(int)
     
     for decade in DECADES:
-        print(f"  Caricamento {decade}...")
+        print(f"  {decade}...", end=" ")
         decade_freq = load_decade_frequencies(decade)
-        
         for word, freq in decade_freq.items():
             total_freq[word] += freq
-        
-        print(f"    {len(decade_freq):,} parole")
+        print(f"{len(decade_freq):,} parole")
     
     print(f"\n✓ Parole uniche totali: {len(total_freq):,}")
-    
     return dict(total_freq)
 
 
-def build_vocabulary(total_freq: Dict[str, float]) -> Dict[str, int]:
-    """
-    Costruisce vocabolario selezionando top-K parole.
+def build_vocabulary(total_freq: Dict[str, int]) -> Dict[str, int]:
+    """Costruisce vocabolario: top-K parole → indici."""
+    print(f"\nCostruzione vocabolario (top {VOCAB_SIZE})...")
     
-    Args:
-        total_freq: Frequenze totali
+    # Ordina per frequenza, seleziona top-K
+    sorted_words = sorted(total_freq.items(), key=lambda x: x[1], reverse=True)
+    selected = sorted_words[:VOCAB_SIZE]
     
-    Returns:
-        Vocabolario {word: index}
-    """
-    print(f"\nCostruzione vocabolario (top {VOCAB_SIZE} parole)...")
-    
-    # Ordina parole per frequenza decrescente
-    sorted_words = sorted(
-        total_freq.items(),
-        key=lambda x: x[1],
-        reverse=True
-    )
-    
-    # Seleziona top-K parole più frequenti
-    # Da ~15M parole uniche → prendiamo solo le 50K più comuni e stabili
-    selected_words = sorted_words[:VOCAB_SIZE]
-    
-    # Crea vocabolario: mapping parola → indice numerico
-    # Indice 0 è riservato per <UNK> (parole sconosciute/fuori vocabolario)
-    # Questo sarà usato per convertire parole in indici durante il training
-    vocab = {UNK_TOKEN: 0}  # Token speciale per parole sconosciute
-    
-    # Assegna indici 1, 2, 3, ... alle parole in ordine di frequenza
-    # Esempio: {"<UNK>": 0, "the": 1, "of": 2, "and": 3, ...}
-    for idx, (word, freq) in enumerate(selected_words, start=1):
+    # Crea mapping {word: index}, indice 0 riservato per <UNK>
+    vocab = {UNK_TOKEN: 0}
+    for idx, (word, _) in enumerate(selected, start=1):
         vocab[word] = idx
     
-    print(f"✓ Vocabolario costruito: {len(vocab):,} parole (incluso {UNK_TOKEN})")
-    
+    print(f"✓ Vocabolario: {len(vocab):,} parole (incluso {UNK_TOKEN})")
     return vocab
 
 
-def save_vocabulary(vocab: Dict[str, int], total_freq: Dict[str, float]):
-    """
-    Salva vocabolario e statistiche.
+def save_vocabulary(vocab: Dict[str, int], total_freq: Dict[str, int]):
+    """Salva vocabolario JSON e statistiche."""
+    print(f"\nSalvataggio {VOCAB_FILE}...")
     
-    Args:
-        vocab: Vocabolario {word: index}
-        total_freq: Frequenze totali
-    """
-    print(f"\nSalvataggio vocabolario in {VOCAB_FILE}...")
-    
-    # Salva vocab JSON
+    # Salva JSON
     with open(VOCAB_FILE, 'w', encoding='utf-8') as f:
         json.dump(vocab, f, ensure_ascii=False, indent=2)
-    
-    print(f"✓ Vocabolario salvato: {len(vocab):,} parole")
+    print(f"✓ Salvato: {len(vocab):,} parole")
     
     # Salva statistiche
     stats_file = VOCAB_FILE.replace('.json', '_stats.txt')
-    
     with open(stats_file, 'w', encoding='utf-8') as f:
         f.write("="*70 + "\n")
         f.write("VOCABOLARIO - STATISTICHE\n")
         f.write("="*70 + "\n\n")
+        f.write(f"Dimensione: {len(vocab):,}\n")
+        f.write(f"UNK token: {UNK_TOKEN}\n\n")
         
-        f.write(f"Dimensione vocabolario: {len(vocab):,}\n")
-        f.write(f"Token speciale UNK: {UNK_TOKEN}\n\n")
-        
-        # Top 20 parole
-        f.write("Top 20 parole più frequenti:\n")
-        f.write("-" * 50 + "\n")
-        
-        sorted_vocab = sorted(
-            [(w, i) for w, i in vocab.items() if w != UNK_TOKEN],
-            key=lambda x: x[1]
-        )
-        
+        # Top 20
+        f.write("Top 20 parole:\n" + "-"*50 + "\n")
+        sorted_vocab = sorted([(w, i) for w, i in vocab.items() if w != UNK_TOKEN], 
+                             key=lambda x: x[1])
         for word, idx in sorted_vocab[:20]:
-            freq = total_freq.get(word, 0)
-            f.write(f"{idx:6d}. {word:20s} {freq:.6e}\n")
+            f.write(f"{idx:6d}. {word:20s} {total_freq.get(word, 0):.6e}\n")
         
-        f.write("\n")
-        
-        # Statistiche copertura per decennio
-        f.write("Copertura vocabolario per decennio:\n")
-        f.write("-" * 50 + "\n")
-        
+        # Copertura per decennio
+        f.write("\nCopertura per decennio:\n" + "-"*50 + "\n")
         for decade in DECADES:
             decade_freq = load_decade_frequencies(decade)
-            
-            # Quante parole del vocabolario sono presenti?
-            present = sum(1 for w in vocab.keys() if w != UNK_TOKEN and w in decade_freq)
-            coverage = 100 * present / (len(vocab) - 1)  # -1 per UNK
-            
-            f.write(f"{decade}: {present:,}/{len(vocab)-1:,} parole ({coverage:.2f}%)\n")
+            present = sum(1 for w in vocab if w != UNK_TOKEN and w in decade_freq)
+            coverage = 100 * present / (len(vocab) - 1)
+            f.write(f"{decade}: {present:,}/{len(vocab)-1:,} ({coverage:.2f}%)\n")
     
-    print(f"✓ Statistiche salvate in {stats_file}")
+    print(f"✓ Statistiche: {stats_file}")
 
 
 def main():
-    # Main function.
-    
+    """Main: costruisce vocabolario comune."""
     print("="*70)
     print("COSTRUZIONE VOCABOLARIO COMUNE")
     print("="*70)
-    print(f"Dimensione target: {VOCAB_SIZE:,} parole")
+    print(f"Dimensione target: {VOCAB_SIZE:,}")
     print(f"Decenni: {', '.join(DECADES)}")
     print("="*70 + "\n")
     
     # Verifica file input
     for decade in DECADES:
-        file_path = get_processed_file_path(decade)
-        if not os.path.exists(file_path):
-            print(f"❌ File mancante: {file_path}")
-            print("Eseguire prima preprocess.py (FASE 2)")
+        if not os.path.exists(get_processed_file_path(decade)):
+            print(f"❌ File mancante: {decade}.txt")
+            print("Eseguire prima preprocess.py")
             return 1
     
-    # Step 1: Calcola frequenze totali
+    # Pipeline
     total_freq = compute_total_frequencies()
-    
-    # Step 2: Costruisci vocabolario
     vocab = build_vocabulary(total_freq)
-    
-    # Step 3: Salva
     save_vocabulary(vocab, total_freq)
     
     print("\n" + "="*70)
-    print("✅ FASE 3 COMPLETATA")
+    print("✅ COMPLETATO")
     print("="*70)
-    print(f"Vocabolario salvato in: {VOCAB_FILE}")
-    print("\nProssimi step:")
-    print("  - Implementare dataset.py (PyTorch Dataset)")
-    print("  - Implementare model.py (CBOW)")
-    print("  - Implementare train.py (training embeddings)")
+    print(f"Vocabolario: {VOCAB_FILE}")
+    print("\nProssimo: train.py (training embeddings)")
     print("="*70)
-    
     return 0
 
 

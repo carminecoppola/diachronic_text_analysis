@@ -1,316 +1,255 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-FASE 2: Preprocessing e aggregazione per decennio
+Preprocessing NLP per Word2Vec/CBOW - Analisi Diacronica
 
-Questo script processa i dati filtrati da FASE 1 e li aggrega per decennio.
+REGOLE IMPLEMENTATE (per Word2Vec/CBOW):
+1. Normalizzazione: lowercase + rimozione accenti
+2. Tokenizzazione: parole superficiali, NO token artificiali (no <s>, </s>)
+3. Filtri: rimuove URL, hash, codici, pattern non linguistici
+4. Numeri: sostituiti con NUM (mantiene ruolo sintattico, riduce vocabolario)
+5. Stopword: MANTENUTE (fondamentali per contesti stabili in diacronia)
+6. Lemmatizzazione: NO (forme flessive hanno distribuzioni distinte)
 
-COSA FA:
-1. Legge data/raw/{NGRAM_TYPE}gram_filtered.tsv (supporta 3-gram e 5-gram)
-2. Aggrega frequenze per decennio (1900-1909 → 1900s, ecc.)
-3. Normalizza frequenze usando total_counts
-4. Applica filtri di pulizia (lunghezza, lowercase)
-5. Salva file separati per ogni decennio in data/processed/{NGRAM_TYPE}gram/
+MOTIVAZIONI:
+- Token boundary: CBOW usa finestre locali, non serve inizio/fine frase
+- Stopword: essenziali per stabilità contestuale e analisi diacronica
+- Lemmatizzazione: rimuoverebbe informazione morfologica rilevante per diacronia
+- Numeri → NUM: cattura ruolo sintattico, mantiene token significativi (mp3, covid19)
 
-INPUT:
-- data/raw/{NGRAM_TYPE}gram/Ngram_filtered.tsv
-- data/raw/{NGRAM_TYPE}gram/total_counts.txt
-
-OUTPUT:
-- data/processed/{NGRAM_TYPE}gram/1900s.txt
-- data/processed/{NGRAM_TYPE}gram/1910s.txt
-- ...
-- data/processed/{NGRAM_TYPE}gram/2010s.txt
-
-Formato output: ogni file contiene righe con:
-ngram \t normalized_frequency
-
-Dove ngram è nel formato:
-- 3-gram: "word1 word2 word3" (3 parole separate da spazio)
-- 5-gram: "word1 word2 word3 word4 word5" (5 parole separate da spazio)
-
-Questo MANTIENE il contesto originale per l'analisi diacronica.
-
-NOTA IMPORTANTE:
-NON spacchetta gli n-gram in parole singole.
-Il contesto delle sequenze viene preservato per il training CBOW.
+INPUT: file filtrato "ngram TAB year TAB counts"
+OUTPUT: un file per decennio con n-gram puliti, uno per riga
 """
 
 import os
-import sys
+import re
+import unicodedata
 from collections import defaultdict
-from typing import Dict
+from typing import List, Tuple
+from tqdm import tqdm
 
-# Import config
-from config import (
-    DATA_RAW_DIR,
-    DATA_PROCESSED_DIR,
-    TOTAL_COUNTS_FILE,
-    START_YEAR,
-    END_YEAR,
-    DECADES,
-    NGRAM_TYPE,
-    MIN_TOKEN_LENGTH,
-    MAX_TOKEN_LENGTH,
-    LOWERCASE,
-    MIN_CORPUS_OCCURRENCES,
-    get_decade_from_year,
-    get_processed_file_path,
-    create_directories
-)
+from config import DATA_RAW_DIR, DATA_PROCESSED_DIR, NGRAM_TYPE, START_YEAR, END_YEAR
+
+# ============================================================================
+# PARAMETRI CONFIGURABILI
+# ============================================================================
+
+MIN_TOKEN_LENGTH = 2              # Lunghezza minima token
+MAX_TOKEN_LENGTH = 40             # Lunghezza massima token
+MIN_ALPHA_RATIO = 0.6             # % minima caratteri alfabetici
+MAX_DIGIT_COUNT = 3               # Massimo numero di cifre in un token
+MAX_CHAR_REPETITION = 4           # Massimo caratteri ripetuti (aaaa → invalido)
+MIN_OCCURRENCES = 5               # Soglia minima occorrenze per n-gram
+
+# ============================================================================
+# FUNZIONI DI PREPROCESSING
+# ============================================================================
+
+def normalize_text(text: str) -> str:
+    """Normalizza: lowercase + rimozione accenti Unicode."""
+    text = text.lower()
+    # Normalizzazione Unicode NFKD + rimozione caratteri combining
+    nfkd = unicodedata.normalize('NFKD', text)
+    return ''.join([c for c in nfkd if not unicodedata.combining(c)])
 
 
-def load_total_counts() -> Dict[int, int]:
+def is_number(token: str) -> bool:
     """
-    Carica total_counts per normalizzazione.
-    
-    Returns:
-        Dizionario {anno: total_match_count}
+    True se token è numero puro/data (123, 1990, 1,000).
+    False per alfanumerici con valore lessicale (mp3, covid19).
     """
-    print("Caricamento total_counts...")
+    clean = token.replace(',', '').replace('.', '')
+    return clean.isdigit()
+
+
+def is_repetitive(token: str) -> bool:
+    """True se token ha ripetizioni artificiali (aaaa, !!!!)."""
+    if len(token) < MAX_CHAR_REPETITION:
+        return False
+    for i in range(len(token) - MAX_CHAR_REPETITION + 1):
+        if len(set(token[i:i+MAX_CHAR_REPETITION])) == 1:
+            return True
+    return False
+
+def is_valid_token(token: str) -> bool:
+    """
+    Verifica validità token. Scartato se soddisfa ALMENO UNA condizione:
+    - Lunghezza fuori range [MIN_TOKEN_LENGTH, MAX_TOKEN_LENGTH]
+    - % caratteri alfabetici < MIN_ALPHA_RATIO
+    - URL/hash/codici (http, www, .com, #, @)
+    - Ripetizioni artificiali (aaaa)
+    - Troppi numeri (>MAX_DIGIT_COUNT e <50% alfabetici)
     
-    total_counts = {}
+    NON scarta token solo perché rari (frequenza controllata dopo).
+    """
+    # Controllo lunghezza
+    if len(token) < MIN_TOKEN_LENGTH or len(token) > MAX_TOKEN_LENGTH:
+        return False
     
+    # Pattern non linguistici
+    if any(p in token for p in ['http', 'www', '.com', '#', '@']):
+        return False
+    
+    # % caratteri alfabetici
+    alpha_count = sum(1 for c in token if c.isalpha())
+    alpha_ratio = alpha_count / len(token)
+    if alpha_ratio < MIN_ALPHA_RATIO:
+        return False
+    
+    # Deve contenere almeno una lettera
+    if alpha_count == 0:
+        return False
+    
+    # Ripetizioni artificiali
+    if is_repetitive(token):
+        return False
+    
+    # Troppi numeri (ma permetti alfanumerici come mp3)
+    digit_count = sum(1 for c in token if c.isdigit())
+    if digit_count > MAX_DIGIT_COUNT and alpha_ratio < 0.5:
+        return False
+    
+    return True
+
+
+def tokenize_and_clean(text: str) -> List[str]:
+    """
+    Tokenizza e pulisce il testo secondo regole NLP per Word2Vec.
+    
+    Output: lista token puliti (stopword MANTENUTE, NO lemmatizzazione)
+    """
+    text = normalize_text(text)
+    
+    # Tokenizzazione: split su spazi/punteggiatura
+    # Mantiene solo parole e numeri, scarta punteggiatura
+    tokens = re.findall(r'\b[\w]+\b', text)
+    
+    cleaned = []
+    for token in tokens:
+        # Sostituisci numeri con NUM
+        if is_number(token):
+            cleaned.append('NUM')
+        # Valida e aggiungi token linguistici
+        elif is_valid_token(token):
+            cleaned.append(token)
+    
+    return cleaned
+
+def process_ngram_line(line: str) -> Tuple[List[str], int]:
+    """
+    Processa una linea del file filtrato.
+    
+    Input:  "ngram TAB year TAB match_count TAB volume_count"
+    Output: (tokens_puliti, year) o (None, None) se invalido
+    """
     try:
-        with open(TOTAL_COUNTS_FILE, 'r', encoding='utf-8') as f:
-            content = f.read().strip()
-            # V3 format: una riga con valori separati da virgole
-            # Formato: year,match_count,page_count,volume_count ripetuto
-            parts = content.split(',')
-            
-            # Processa a gruppi di 4 (year, match_count, page_count, volume_count)
-            for i in range(0, len(parts), 4):
-                if i + 3 < len(parts):
-                    try:
-                        year = int(parts[i].strip())
-                        match_count = int(parts[i+1].strip())
-                        total_counts[year] = match_count
-                    except ValueError:
-                        continue
-    
-    except FileNotFoundError:
-        print(f"⚠ File total_counts non trovato: {TOTAL_COUNTS_FILE}")
-        print("Normalizzazione non possibile. Usare frequenze raw.")
-        return {}
-    
-    print(f"✓ Caricati total_counts per {len(total_counts)} anni")
-    return total_counts
+        parts = line.strip().split('\t')
+        if len(parts) < 2:
+            return None, None
+        
+        ngram_text = parts[0]
+        year = int(parts[1])
+        
+        # Applica preprocessing completo
+        tokens = tokenize_and_clean(ngram_text)
+        
+        # Scarta se dopo pulizia ha meno token del necessario
+        if len(tokens) < NGRAM_TYPE:
+            return None, None
+        
+        # Mantieni solo primi NGRAM_TYPE token per consistenza
+        return tokens[:NGRAM_TYPE], year
+        
+    except (ValueError, IndexError):
+        return None, None
 
-
-def aggregate_by_decade(input_file: str, total_counts: Dict[int, int]) -> Dict[str, Dict[str, float]]:
+def aggregate_by_decade(input_file: str, output_dir: str):
     """
-    Aggrega n-gram per decennio mantenendo il contesto.
+    Aggrega n-gram per decennio applicando preprocessing NLP.
     
-    Args:
-        input_file: Path del file filtrato
-        total_counts: Dizionario total counts per anno
-    
-    Returns:
-        Dizionario {decennio: {ngram: normalized_freq}}
-        dove ngram è "word1 word2 word3" per 3-gram
+    Output: un file per decennio (es. 1900s.txt) contenente:
+    - Un n-gram pulito per riga: "word1 word2 word3 word4 word5"
+    - Replicato per numero di occorrenze (mantiene distribuzione naturale)
     """
-    print(f"\nAggregazione per decennio da {input_file}...")
+    print(f"\n{'='*70}")
+    print(f"PREPROCESSING NLP - Word2Vec/CBOW")
+    print(f"{'='*70}")
+    print(f"N-gram: {NGRAM_TYPE}, Anni: {START_YEAR}-{END_YEAR}, Min occ: {MIN_OCCURRENCES}")
+    print(f"Parametri: len=[{MIN_TOKEN_LENGTH},{MAX_TOKEN_LENGTH}], "
+          f"alpha≥{MIN_ALPHA_RATIO}, digit≤{MAX_DIGIT_COUNT}, rep≤{MAX_CHAR_REPETITION}")
+    print(f"{'='*70}\n")
     
-    # Struttura: {decade: {word: total_count}}
-    decade_data = {decade: defaultdict(int) for decade in DECADES}
+    # Aggregazione per decennio
+    decade_data = defaultdict(lambda: defaultdict(int))
     
-    # Struttura: {decade: total_count_decade}
-    decade_totals = {decade: 0 for decade in DECADES}
-    
-    lines_processed = 0
+    print(f"Lettura e preprocessing: {input_file}")
     
     with open(input_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            lines_processed += 1
+        for line in tqdm(f, desc="Processamento"):
+            tokens, year = process_ngram_line(line)
             
-            if lines_processed % 1000000 == 0:
-                print(f"  Processate {lines_processed//1000000}M righe...")
-            
-            try:
-                parts = line.strip().split('\t')
-                if len(parts) != 4:
-                    continue
-                
-                ngram, year_str, match_count_str, _ = parts
-                year = int(year_str)
-                match_count = int(match_count_str)
-                
-                # Determina decennio
-                decade = get_decade_from_year(year)
-                
-                if decade not in decade_data:
-                    continue
-                
-                # Mantieni gli n-gram completi per preservare il contesto
-                # Non spacchettare in parole singole!
-                words = ngram.split()
-                
-                # Filtra n-gram: tutte le parole devono essere valide
-                valid = True
-                for word in words:
-                    word_check = word.lower() if LOWERCASE else word
-                    if (len(word_check) < MIN_TOKEN_LENGTH or 
-                        len(word_check) > MAX_TOKEN_LENGTH or 
-                        not word_check.isalpha()):
-                        valid = False
-                        break
-                
-                if not valid:
-                    continue
-                
-                # Normalizza n-gram (lowercase se richiesto)
-                if LOWERCASE:
-                    ngram = ' '.join([w.lower() for w in words])
-                
-                # Aggrega l'n-gram completo (mantiene contesto)
-                decade_data[decade][ngram] += match_count
-            
-            except (ValueError, IndexError):
+            if tokens is None or year is None:
                 continue
+            
+            if year < START_YEAR or year > END_YEAR:
+                continue
+            
+            # Determina decennio (1995 → 1990)
+            decade = (year // 10) * 10
+            ngram_str = ' '.join(tokens)
+            decade_data[decade][ngram_str] += 1
     
-    print(f"✓ Processate {lines_processed:,} righe totali")
+    print(f"\n✓ Decenni trovati: {sorted(decade_data.keys())}\n")
     
-    # Calcola totali per decennio (per normalizzazione)
-    # Total counts = numero totale di parole pubblicate in quel decennio
-    # Serve per normalizzare: "guerra" con 100K occorrenze negli anni '40
-    # ha frequenza relativa diversa rispetto agli anni '10 (meno libri pubblicati)
-    print("\nCalcolo totali per decennio...")
-    for decade in DECADES:
-        decade_start = int(decade[:4])
-        decade_end = decade_start + 9
+    # Salvataggio
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for decade in sorted(decade_data.keys()):
+        output_file = os.path.join(output_dir, f"{decade}s.txt")
+        ngrams = decade_data[decade]
         
-        for year in range(decade_start, decade_end + 1):
-            if year in total_counts:
-                decade_totals[decade] += total_counts[year]
-    
-    # Normalizza frequenze
-    # normalized_freq = count / total_words_in_decade
-    # Questo rende comparabili le frequenze tra decenni con volumi diversi
-    print("Normalizzazione frequenze...")
-    normalized_data = {}
-    
-    for decade in DECADES:
-        normalized_data[decade] = {}
-        total = decade_totals[decade]
+        # Filtra per occorrenze minime
+        filtered = {ng: cnt for ng, cnt in ngrams.items() if cnt >= MIN_OCCURRENCES}
         
-        if total == 0:
-            print(f"⚠ Total count = 0 per {decade}, uso frequenze raw")
-            total = 1
+        print(f"{decade}s: {len(ngrams):,} totali → {len(filtered):,} filtrati (≥{MIN_OCCURRENCES})")
         
-        for word, count in decade_data[decade].items():
-            # Normalizza: freq = count / total
-            # Esempio: "war" con 1M occorrenze su 100B parole totali = freq 1e-5
-            normalized_freq = count / total
-            normalized_data[decade][word] = normalized_freq
-        
-        print(f"  {decade}: {len(normalized_data[decade]):,} parole uniche")
-    
-    return normalized_data
-
-
-def filter_by_frequency(decade_data: Dict[str, Dict[str, float]]) -> Dict[str, Dict[str, float]]:
-    """
-    Filtra parole con occorrenze totali sotto soglia.
-    
-    Args:
-        decade_data: Dati aggregati per decennio
-    
-    Returns:
-        Dati filtrati
-    """
-    print(f"\nFiltraggio parole con freq totale < {MIN_CORPUS_OCCURRENCES}...")
-    
-    # Calcola occorrenze totali per ogni parola (somma su tutti i decenni)
-    # Nota: per calcolo preciso servirebbe count raw, ma usiamo approssimazione
-    word_total_freq = defaultdict(float)
-    
-    for decade_words in decade_data.values():
-        for word, freq in decade_words.items():
-            word_total_freq[word] += freq
-    
-    # Filtra
-    filtered_data = {}
-    for decade, decade_words in decade_data.items():
-        filtered_data[decade] = {
-            word: freq
-            for word, freq in decade_words.items()
-            if word_total_freq[word] >= MIN_CORPUS_OCCURRENCES / 1e9  # Approssimazione
-        }
-        
-        removed = len(decade_words) - len(filtered_data[decade])
-        print(f"  {decade}: rimosse {removed} parole rare")
-    
-    return filtered_data
-
-
-def save_processed_data(decade_data: Dict[str, Dict[str, float]]):
-    """
-    Salva dati processati in file separati per decennio.
-    
-    Args:
-        decade_data: Dati aggregati e normalizzati
-    """
-    print("\nSalvataggio file processati...")
-    
-    for decade in DECADES:
-        output_file = get_processed_file_path(decade)
-        
-        # Ordina parole per frequenza (decrescente)
-        sorted_words = sorted(
-            decade_data[decade].items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
-        
+        # Scrivi n-gram replicati per frequenza
         with open(output_file, 'w', encoding='utf-8') as f:
-            for word, freq in sorted_words:
-                f.write(f"{word}\t{freq:.12e}\n")
-        
-        print(f"  ✓ {decade}: {len(sorted_words):,} parole salvate in {output_file}")
+            total = 0
+            for ngram, count in filtered.items():
+                for _ in range(count):
+                    f.write(ngram + '\n')
+                    total += 1
+            print(f"  → {total:,} linee scritte in {output_file}")
+    
+    print(f"\n{'='*70}")
+    print(f"✅ PREPROCESSING COMPLETATO")
+    print(f"{'='*70}\n")
+    
+    return True
 
+# ============================================================================
+# MAIN
+# ============================================================================
 
 def main():
-    """Main function."""
-    
-    print("="*70)
-    print("PREPROCESSING E AGGREGAZIONE PER DECENNIO")
-    print("="*70)
-    print(f"Periodo: {START_YEAR}-{END_YEAR}")
-    print(f"Decenni: {', '.join(DECADES)}")
-    print("="*70 + "\n")
-    
-    # Crea directory
-    create_directories()
-    
-    # File input (usa NGRAM_TYPE da config)
+    """Entry point del preprocessing."""
     input_file = os.path.join(DATA_RAW_DIR, f"{NGRAM_TYPE}gram_filtered.tsv")
+    output_dir = DATA_PROCESSED_DIR
     
     if not os.path.exists(input_file):
-        print(f"❌ File input non trovato: {input_file}")
-        print("Eseguire prima download_ngrams.py (FASE 1)")
-        return 1
+        print(f"❌ File non trovato: {input_file}")
+        return False
     
-    print(f"Elaborazione file {NGRAM_TYPE}-gram: {input_file}")
+    success = aggregate_by_decade(input_file, output_dir)
     
-    # Step 1: Carica total_counts
-    total_counts = load_total_counts()
+    if success:
+        print(f"✓ File salvati in: {output_dir}")
+    else:
+        print("❌ Errore durante preprocessing")
     
-    # Step 2: Aggrega per decennio
-    decade_data = aggregate_by_decade(input_file, total_counts)
-    
-    # Step 3: Filtra parole rare
-    decade_data = filter_by_frequency(decade_data)
-    
-    # Step 4: Salva
-    save_processed_data(decade_data)
-    
-    print("\n" + "="*70)
-    print("✅ FASE 2 COMPLETATA")
-    print("="*70)
-    print(f"File salvati in: {DATA_PROCESSED_DIR}")
-    print("Prossimo step: eseguire build_vocab.py per costruire vocabolario")
-    print("="*70)
-    
-    return 0
+    return success
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

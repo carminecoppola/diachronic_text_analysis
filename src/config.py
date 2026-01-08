@@ -90,7 +90,7 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 NGRAM_SUFFIX = f"{NGRAM_TYPE}gram"
 DATA_RAW_DIR = os.path.join(DATA_DIR, "raw", NGRAM_SUFFIX)
 DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed", NGRAM_SUFFIX)
-MODELS_DIR = os.path.join(PROJECT_ROOT, "models", NGRAM_SUFFIX)
+MODELS_DIR = os.path.join("/storage/external_01/diachronic_text_analysis/models", NGRAM_SUFFIX)
 PLOTS_DIR = os.path.join(PROJECT_ROOT, "plots")
 ALIGNMENT_DIR = os.path.join(PROJECT_ROOT, "alignment")
 

@@ -52,7 +52,7 @@ class CBOWModel(nn.Module):
         self.embeddings = nn.Embedding(
             num_embeddings=vocab_size,
             embedding_dim=embedding_dim,
-            padding_idx=0  # Indice <UNK> non contribuisce ai gradienti
+            padding_idx=0  # Indice <UNK> e <PAD> non contribuiscono ai gradienti
         )
         
         # Layer di output

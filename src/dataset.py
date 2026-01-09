@@ -13,7 +13,7 @@ Vantaggi:
 Requisiti:
 - Adatto per dataset fino a ~5-10 Milioni di trigrammi (per la RAM).
 - Con 750k trigrammi occupa pochissimo (qualche centinaio di MB).
-"""
+
 
 import json
 import os
@@ -133,4 +133,151 @@ class CBOWDataset(Dataset):
         target_id, context_tensor = self.samples[idx]
         
         # Ritorniamo target come tensore scalare
+        return torch.tensor(target_id, dtype=torch.long), context_tensor
+
+"""
+
+"""
+FASE 4: Dataset CBOW - Versione "Full Sliding Window"
+
+STRATEGIA:
+Per ogni 5-gramma, generiamo TUTTI i possibili target (non solo quello centrale),
+usando il PADDING (indice 0) quando la finestra esce dai bordi.
+
+Input:  [A, B, C, D, E]
+Output: 
+1. Target A | Context [0, 0, B, C]
+2. Target B | Context [0, A, C, D]
+3. Target C | Context [A, B, D, E]
+... e così via.
+
+Vantaggi:
+- Moltiplica i dati di training (da 1x a 5x per riga).
+- Impara come si comportano le parole anche all'inizio/fine delle frasi.
+"""
+
+import json
+import os
+import torch
+import random
+from torch.utils.data import Dataset
+from typing import List, Tuple
+
+from config import (
+    VOCAB_FILE,
+    CONTEXT_WINDOW,
+    UNK_TOKEN,
+    get_processed_file_path,
+)
+
+class CBOWDataset(Dataset):
+    def __init__(self, decade: str, cache_contexts: bool = False):
+        self.decade = decade
+        
+        # 1. Carica Vocabolario
+        self._load_vocab()
+        
+        # 2. Carica i dati (Sliding Window)
+        self.samples = self._load_data_as_samples()
+        
+        print(f"✓ Dataset '{decade}' pronto (Full Sliding Window).")
+        print(f"  - Numero totale di esempi generati: {len(self.samples):,}")
+
+    def _load_vocab(self):
+        if not os.path.exists(VOCAB_FILE):
+            raise FileNotFoundError(f"Vocabolario non trovato: {VOCAB_FILE}")
+        with open(VOCAB_FILE, 'r', encoding='utf-8') as f:
+            self.word2idx = json.load(f)
+        # Assumiamo che 0 sia riservato per il padding nel model.py
+        # Se UNK non c'è, lo mappiamo a 1 o un altro indice sicuro, ma NON 0 se possibile.
+        # Se nel tuo vocab UNK è 0, va bene lo stesso, il modello ignorerà sia UNK che PAD.
+        self.unk_idx = self.word2idx.get(UNK_TOKEN, 0)
+        self.pad_idx = 0 
+
+    def _load_data_as_samples(self) -> List[Tuple[int, torch.Tensor]]:
+        decade_file = get_processed_file_path(self.decade)
+        if not os.path.exists(decade_file):
+            raise FileNotFoundError(f"Dati non trovati: {decade_file}")
+
+        print(f"  - Caricamento entità da {decade_file}...")
+        
+        samples_buffer = [] 
+        
+        with open(decade_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            
+        random.shuffle(lines)
+        print("    Righe mescolate. Inizio generazione Sliding Window...")
+
+        for line in lines:
+            line = line.strip()
+            if not line: continue
+            
+            parts = line.split('\t')
+            ngram_text = parts[0]
+            
+            # Gestione Frequenza (ripetizione righe)
+            repeats = 1
+            if len(parts) > 1:
+                try:
+                    freq = float(parts[1])
+                    if freq > 100: repeats = 2
+                    if freq > 1000: repeats = 3
+                    if freq > 10000: repeats = 5
+                    repeats = min(repeats, 10)
+                except:
+                    pass
+            
+            words = ngram_text.split()
+            # Scarta se troppo corto (es. meno di 2 parole totali)
+            if len(words) < 2: 
+                continue
+
+            # Converti parole in ID
+            ids = [self.word2idx.get(w.lower(), self.unk_idx) for w in words]
+            n = len(ids)
+
+            # --- SLIDING WINDOW LOGIC ---
+            # Scorriamo su OGNI parola dell'n-gramma considerandola target
+            generated_for_this_line = []
+            
+            for i in range(n):
+                target_id = ids[i]
+                
+                context_ids = []
+                
+                # Costruiamo Finestra Sinistra
+                for w in range(CONTEXT_WINDOW, 0, -1): # es. 2, 1
+                    idx_left = i - w
+                    if idx_left < 0:
+                        context_ids.append(self.pad_idx) # Padding (0)
+                    else:
+                        context_ids.append(ids[idx_left])
+                
+                # Costruiamo Finestra Destra
+                for w in range(1, CONTEXT_WINDOW + 1): # es. 1, 2
+                    idx_right = i + w
+                    if idx_right >= n:
+                        context_ids.append(self.pad_idx) # Padding (0)
+                    else:
+                        context_ids.append(ids[idx_right])
+                
+                # Convertiamo in tensore
+                context_tensor = torch.tensor(context_ids, dtype=torch.long)
+                generated_for_this_line.append((target_id, context_tensor))
+            
+            # Aggiungiamo al buffer globale ripetendo se necessario
+            for _ in range(repeats):
+                samples_buffer.extend(generated_for_this_line)
+                
+        # Shuffle finale perché abbiamo generato gruppi contigui
+        random.shuffle(samples_buffer)
+        
+        return samples_buffer
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        target_id, context_tensor = self.samples[idx]
         return torch.tensor(target_id, dtype=torch.long), context_tensor

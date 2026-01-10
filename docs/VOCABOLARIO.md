@@ -1,53 +1,42 @@
-# Vocabolario Comune
+# Vocabolario
 
-## Cos'è?
+## Cos'è
 
-Un **dizionario che mappa ogni parola a un numero univoco (indice)**, necessario per convertire testo in formato numerico per machine learning.
+Dizionario che mappa parole a indici numerici:
 
-**Esempio**:
 ```json
 {
   "<UNK>": 0,
   "the": 1,
   "of": 2,
-  "and": 3,
-  "computer": 1523,
-  "gay": 2891
+  "computer": 1523
 }
 ```
 
 ---
 
-## A Cosa Serve?
+## A Cosa Serve
 
-### 1. Conversione Testo → Numeri (Fase 4)
-
-Il vocabolario permette di convertire testo in numeri durante il training del modello.
-
-**NOTA**: Questa conversione **NON è ancora implementata**. Avverrà nella **Fase 4 (PyTorch Dataset)**.
-
-**Esempio di utilizzo futuro**:
-- **Prima**: `"the computer is running"`
-- **Dopo**: `[1, 1523, 45, 892]`
-
-Attualmente (Fase 3), il vocabolario è solo una "mappa" che verrà usata successivamente.
-
-### 2. Vocabolario Comune Tra Decenni
-
-Per confrontare "computer" negli anni '50 vs '90, **serve stesso indice** in entrambi i periodi:
-- Con vocab comune: "computer" = 1523 in tutti i decenni → comparabile
-- Senza: "computer" = 234 (anni '50), 1823 (anni '90) → non comparabile
-
-### 3. Gestione Parole Sconosciute
-
-Token `<UNK>` (indice 0) gestisce:
-- Parole troppo rare (fuori top 50K)
-- Errori di spelling
-- Parole nuove durante inferenza
+1. **Conversione testo → numeri** per il modello CBOW
+2. **Vocabolario comune** tra tutti i decenni (necessario per confrontare embeddings)
+3. **Gestione OOV** con token `<UNK>` per parole sconosciute
 
 ---
 
-## Come Viene Creato?
+## Come Viene Creato
+
+1. Estrae parole singole dai 3-gram di tutti i decenni
+2. Calcola frequenze totali
+3. Seleziona top 50,000 più frequenti
+4. Aggiunge `<UNK>` come token speciale
+
+---
+
+## Statistiche
+
+- **Dimensione**: 50,002 parole
+- **Formato**: JSON (`vocab.json`)
+- **Parole top**: "of", "and", "the", "in", "to"...
 
 **Script**: [`src/build_vocab.py`](../src/build_vocab.py)
 

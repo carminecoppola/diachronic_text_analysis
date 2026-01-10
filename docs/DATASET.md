@@ -1,53 +1,109 @@
-# Dataset: Google Books N-grams v3
+# Dataset: Google Books 3-grams v3 (2020)
 
 ## Panoramica
 
-**Google Books N-grams v3 (2020)**: corpus derivato da ~8% di tutti i libri pubblicati, con frequenze di parole dal 1500 al 2019.
-
-**Periodo analizzato**: 1900-1990 (91 anni, 10 decenni)
-
----
-
-## Struttura Dati
-
-### Posizione File
-
-Storage esterno (symlink):
-```
-data/ → /storage/external_01/diachronic_text_analysis/data/
-├── raw/           # ~27GB (file originali + filtrato)
-└── processed/     # 3.1GB (10 decenni + vocabolario)
-```
+**Fonte**: Google Books (~8% libri pubblicati)  
+**Periodo**: 1900-2019 (12 decenni)  
+**Formato**: 3-gram (sequenze di 3 parole)
 
 ---
 
-## File del Dataset
+## Struttura File
 
-### 1. File Originali (`data/raw/*.gz`)
+### Raw (15GB)
+`data/raw/3gram_filtered.tsv` - 551M righe 3-gram
 
-**24 file compressi** da Google Cloud Storage:
-- `1-00000-of-00024.gz` → `1-00023-of-00024.gz`
-- ~13GB totali compressi
-- Copertura: 1500-2019 (tutti gli anni)
-
-**Formato V3 compatto**:
+Formato:
 ```
-word    anno1,count1,vol1    anno2,count2,vol2    ...
+word1 word2 word3    anno    count    volumes
+view of the          1916    7        7
 ```
 
-**Esempio**:
-```
-computer    1850,2,1    1900,50,10    1990,100000,5000
-```
-- `anno,occorrenze,numero_libri`
+### Processed (3.1GB)
+`data/processed/{decade}.txt` - 12 file (1900s-2010s)
 
-**Divisione alfabetica**:
-- File 0-5: caratteri speciali/numeri → scartati
-- File 6-23: parole alfabetiche (A-Z) → usati
+Formato:
+```
+word1 word2 word3    frequenza
+view of the          1170392.0
+very truly yours     1016079.0
+```
+
+**IMPORTANTE**: Mantiene **3-gram completi** per preservare contesto reale.
+
+### Vocabolario
+`data/processed/vocab.json` - 50,002 parole singole estratte dai 3-gram
 
 ---
 
-### 2. File Filtrato (`data/raw/1gram_filtered.tsv`)
+## Statistiche
+
+- **3-gram unici per decade**: 677K-1.4M
+- **Parole uniche totali**: 145,846
+- **Vocabolario finale**: 50,002 (top frequenti)
+
+**Organizzazione alfabetica dei 6881 file**:
+- File 0-999: simboli, punteggiatura → scartati
+- File 1000-1999: nomi propri (Davis, Dean, etc.) → non scaricati
+- File 2000-5999: parole comuni ad alta frequenza → **scaricati file 2000-2019**
+- File 6000+: caratteri non latini → non necessari
+
+---
+
+### 2. File Filtrato (`data/raw/3gram_filtered.tsv`)
+
+**Dimensioni finali**:
+- 551,044,885 righe processate
+- 15GB formato TSV
+- Periodo: 1900-2019 (120 anni)
+
+**Formato esploso** (una riga per anno):
+```
+computer is running    1990    150    12
+computer is running    1995    300    25
+computer is running    2000    450    40
+```
+- Colonne: `3-gram TAB year TAB count TAB volumes`
+- POS tags rimossi
+- Solo parole alfabetiche
+
+---
+
+### 3. File Processati per Decennio (`data/processed/*.txt`)
+
+**12 file decennali** (1900s.txt - 2010s.txt):
+- Formato: `word TAB normalized_frequency`
+- 3-gram splittati in parole singole
+- Frequenze normalizzate per decennio
+- Ordinate per frequenza decrescente
+
+**Distribuzione parole**:
+```
+1900s:  73,921 parole uniche
+1910s:  76,161 parole
+1920s:  79,869 parole
+1930s:  81,564 parole
+1940s:  82,996 parole
+1950s:  95,445 parole
+1960s: 110,265 parole
+1970s: 118,469 parole
+1980s: 123,631 parole
+1990s: 129,598 parole
+2000s: 134,308 parole
+2010s: 129,587 parole
+```
+
+**Totale parole uniche**: 150,565 parole
+
+---
+
+### 4. Vocabolario Comune (`data/processed/vocab.json`)
+
+**Selezione top 50,002 parole**:
+- Frequenza aggregata su tutti i 12 decenni
+- Include token speciale `<UNK>` per parole fuori vocabolario
+- Formato: `{"<UNK>": 0, "the": 1, "of": 2, ...}`
+- Usato per training CBOW con vocabolario condiviso
 
 **Output preprocessing**: `download_ngrams.py`
 - **766 milioni di righe**

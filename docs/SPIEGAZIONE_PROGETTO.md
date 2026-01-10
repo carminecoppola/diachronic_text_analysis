@@ -2,102 +2,53 @@
 
 ## Obiettivo
 
-**Studiare l'evoluzione del significato di parole** (es. "gay", "computer") attraverso il XX secolo, usando:
-- **Word embeddings** (CBOW)
-- **Allineamenti** (Orthogonal Procrustes)
-- **Metriche** (cosine similarity, semantic shift)
+Studiare l'evoluzione semantica delle parole nel XX-XXI secolo usando word embeddings (CBOW) allenati su Google Books N-grams.
 
 ---
 
-## Pipeline (10 Fasi)
+## Pipeline
 
-```
-FASE 1: Download Dataset
-   ├─ Scarica Google Books N-grams v3 (2020) da Hugging Face
-   └─ Output: data/raw/google-books-ngrams-1grams.parquet (14GB, 766M righe)
+**FASE 1: Download** ✅
+- Scarica Google Books 3-grams (v3 2020)
+- Output: `data/raw/3gram_filtered.tsv` (15GB, 551M righe)
 
-FASE 2: Preprocessing
-   ├─ Filtra anni 1900-1999 (XX secolo)
-   ├─ Suddividi in 10 decenni
-   ├─ Normalizza maiuscole, rimuovi numeri/punteggiatura
-   └─ Output: 10 file data/processed/{decade}.txt (3.1GB totali)
+**FASE 2: Preprocessing** ✅  
+- Aggrega 3-gram per decennio (1900s-2010s)
+- **Mantiene 3-gram completi** per preservare contesto
+- Output: `data/processed/{decade}.txt` - formato: `"word1 word2 word3\tfreq"`
 
-FASE 3: Costruzione Vocabolario
-   ├─ Aggrega frequenze da tutti i decenni
-   ├─ Seleziona top 50.000 parole
-   └─ Output: data/processed/vocab.json (990KB)
+**FASE 3: Vocabolario** ✅
+- Estrae parole singole dai 3-gram
+- Top 50K parole più frequenti
+- Output: `data/processed/vocab.json`
 
-FASE 4: PyTorch Dataset
-   ├─ Context windows (CBOW)
-   ├─ Negative sampling
-   └─ Output: dataset.py + dataloader.py
+**FASE 4: PyTorch Dataset** 🔄
+- CBOW con contesto reale: TARGET=word2, CONTEXT=[word1, word3]
+- Output: `src/dataset.py`
 
-FASE 5: Training CBOW
-   ├─ 10 modelli indipendenti (uno per decennio)
-   ├─ Hyperparams: dim=300, window=5, epochs=5-10
-   └─ Output: models/cbow_1900s.pt ... models/cbow_1990s.pt
+**FASE 5: Training CBOW**
+- 12 modelli (uno per decennio)
+- Output: `models/cbow_{decade}.pt`
 
-FASE 6: Allineamento Embeddings
-   ├─ Orthogonal Procrustes per allineare decenni consecutivi
-   ├─ Baseline: 1900s (riferimento fisso)
-   └─ Output: models/aligned_*.npy
+**FASE 6: Allineamento**
+- Orthogonal Procrustes tra decenni
 
-FASE 7: Calcolo Metriche
-   ├─ Cosine similarity tra decenni
-   ├─ Semantic shift (distanza cumulativa)
-   └─ Output: results/metrics.csv
-
-FASE 8: Visualizzazioni
-   ├─ Plot evoluzione singole parole
-   ├─ Heatmap shift temporale
-   ├─ t-SNE spazio semantico
-   └─ Output: plots/*.png
-
-FASE 9: Nearest Neighbors Analysis
-   ├─ Top-10 parole simili per decennio
-   ├─ Shift vicinato semantico
-   └─ Output: results/neighbors.csv
-
-FASE 10: Analisi Tematiche
-   ├─ Cluster parole per topic
-   ├─ Evoluzione temi nel tempo
-   └─ Output: results/themes.csv
-```
+**FASE 7-10: Analisi**
+- Metriche, visualizzazioni, nearest neighbors
 
 ---
 
-## Stato Avanzamento
+## Note Importanti
 
-| Fase | Status | Note |
-|------|--------|------|
-| 1. Download | COMPLETATA | 766M righe, 14GB |
-| 2. Preprocessing | COMPLETATA | 113.7M words, 10 decenni |
-| 3. Vocabolario | COMPLETATA | 50,001 parole |
-| 4. PyTorch Dataset | - | Prossima fase |
-| 5. Training CBOW | - | |
-| 6. Allineamento | - | |
-| 7-10 | - | |
+### 3-gram e Contesto
+I file processati mantengono i **3-gram completi** (es. "view of the"), non parole singole. Questo preserva il contesto originale per il training CBOW, essenziale per catturare co-occorrenze reali.
 
----
-
-## Base Teorica
-
-### Word Embeddings (CBOW)
-
-**Continuous Bag-of-Words** impara rappresentazioni dense:
-```
-Frase: "the computer is running fast"
-Context: ["the", "is", "running", "fast"]
-Target: "computer"
-
-Obiettivo: predire "computer" da context
-→ Rete neurale impara embedding che cattura co-occorrenze
-```
-
-**Proprietà**:
+**Vantaggi con 3-gram**:
+- Contesto reale da Google Books (non finestre artificiali)
+- Cattura relazioni sintattiche e semantiche naturali
 - Parole con contesti simili → embeddings vicini
 - Dimensione tipica: 100-300 (qui 300)
-- Cattura relazioni semantiche (king - man + woman ≈ queen)
+- Preserva struttura linguistica ("computer is running" vs "running is computer")
 
 ### Allineamento (Orthogonal Procrustes)
 

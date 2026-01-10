@@ -1,102 +1,117 @@
 # 📚 Diachronic Text Analysis
 
-Analisi dell'evoluzione semantica delle parole nel tempo (1900-1990) usando word embeddings e Google Books N-grams.
+## 🎯 Cosa Fa il Progetto
 
-**Stato progetto**: ✅ Fase 3/10 completata (Vocabolario pronto) | 🔜 Prossima: Training embeddings
+Questo progetto studia l'**evoluzione semantica delle parole nel tempo** (1900-2019) usando:
+- **Word embeddings** (CBOW) allenati su Google Books 3-grams
+- **Allineamento** tra decenni con Orthogonal Procrustes
+- **Analisi** del semantic shift di parole chiave
+
+**Esempio**: Come è cambiato il significato di "computer" dagli anni '30 (calcolatore umano) agli anni '90 (dispositivo elettronico)?
+
+**Stato**: ✅ Fase 1-3 completate | 🔜 Fase 4: PyTorch Dataset
 
 ---
 
-## 🚀 Quick Start per Collaboratori
+## ⚙️ Configurazione Iniziale
 
-### Per chi inizia ORA (Fase 4)
-
-**Cosa è già pronto**:
-- ✅ Dataset scaricato e processato (766M righe → 113M parole uniche)
-- ✅ Vocabolario comune creato (50,001 parole)
-- ✅ 10 file decennali pronti per training
-
-**Cosa devi fare**:
-
-1. **Clona e configura ambiente**:
 ```bash
+# 1. Clone repository
 git clone https://github.com/carminecoppola/diachronic_text_analysis.git
 cd diachronic_text_analysis
+
+# 2. Crea ambiente virtuale Python
 python3 -m venv .venv
 source .venv/bin/activate
+
+# 3. Installa dipendenze
 pip install -r requirements.txt
+
+# 4. Verifica configurazione
+python src/config.py
 ```
-
-2. **Crea il tuo branch di lavoro**:
-```bash
-# Crea e passa a un nuovo branch con il tuo nome
-git checkout -b nome-cognome
-
-# Esempio: git checkout -b mario-rossi
-# oppure: git checkout -b feature/dataset-implementation
-```
-
-3. **Verifica setup**:
-```bash
-python src/config.py  # Test configurazione
-ls -lh data/processed/*.txt  # Verifica dati (dovrebbero essere presenti)
-git branch  # Verifica di essere sul tuo branch (*)
-```
-
-4. **Leggi documentazione**:
-- [SPIEGAZIONE_PROGETTO.md](docs/SPIEGAZIONE_PROGETTO.md) - Panoramica pipeline
-- [DATASET.md](docs/DATASET.md) - Struttura dati
-- [VOCABOLARIO.md](docs/VOCABOLARIO.md) - Come funziona vocab
-
-5. **Inizia sviluppo**: Fase 4 - PyTorch Dataset ([vedi sotto](#📋-pipeline-stato-corrente))
 
 ---
 
-## 🔀 Workflow Git per Collaboratori
+## 🔀 Workflow Git: Creare Branch di Lavoro
 
-### Ogni collaboratore lavora sul proprio branch
+**IMPORTANTE**: Non lavorare mai direttamente su `main`!
 
-**Mai lavorare direttamente su `main`!** Ogni utente deve creare il proprio branch personale.
-
-#### 1. Prima volta - Crea branch
 ```bash
-# Assicurati di essere su main aggiornato
+# 1. Assicurati di essere su main aggiornato
 git checkout main
 git pull origin main
 
-# Crea il tuo branch personale
+# 2. Crea il tuo branch personale
 git checkout -b nome-cognome
-# oppure con naming più descrittivo: git checkout -b feature/nome-feature
-```
+# o con nome descrittivo: git checkout -b feature/nome-feature
 
-#### 2. Durante il lavoro - Salva progressi
-```bash
-# Verifica modifiche
-git status
-
-# Aggiungi file modificati
-git add src/dataset.py  # singolo file
-# oppure: git add .      # tutti i file
-
-# Commit con messaggio descrittivo
-git commit -m "Implementato PyTorch Dataset per CBOW"
-
-# Sincronizza con il tuo branch remoto
-git push origin nome-cognome
-```
-
-#### 3. Lavoro completato - Richiedi merge
-```bash
-# Assicurati che tutto sia committato
-git status  # Dovrebbe dire "nothing to commit, working tree clean"
-
-# Push finale del branch
+# 3. Durante il lavoro: salva progressi
+git add .
+git commit -m "Descrizione modifiche"
 git push origin nome-cognome
 
-# A questo punto:
-# 1. Vai su GitHub → repository
-# 2. Clicca "Compare & pull request"
-# 3. Scrivi descrizione del lavoro fatto
-# 4. Assegna reviewer
+# 4. A lavoro completato: crea Pull Request su GitHub
+```
+
+---
+
+## 📋 Le 10 Fasi del Progetto
+
+| Fase | Nome | Stato | Output |
+|------|------|-------|--------|
+| **1** | Download Dataset | ✅ | `data/raw/3gram_filtered.tsv` (15GB, 551M righe) |
+| **2** | Preprocessing | ✅ | `data/processed/{decade}.txt` (12 file, 3-gram completi) |
+| **3** | Vocabolario | ✅ | `data/processed/vocab.json` (50K parole) |
+| **4** | PyTorch Dataset | 🔜 | `src/dataset.py` (CBOW con contesto reale) |
+| **5** | Training CBOW | 📝 | `models/cbow_{decade}.pt` (12 modelli) |
+| **6** | Allineamento | 📝 | `models/aligned_{decade}.npy` |
+| **7** | Metriche | 📝 | `results/metrics.csv` (cosine similarity, shift) |
+| **8** | Visualizzazioni | 📝 | `plots/*.png` (evoluzione parole, heatmap) |
+| **9** | Nearest Neighbors | 📝 | `results/neighbors.csv` (top-10 simili) |
+| **10** | Analisi Tematiche | 📝 | `results/themes.csv` (clustering) |
+
+### Eseguire le Fasi Completate
+
+```bash
+python src/download_ngrams.py   # Fase 1 (solo se dati mancanti)
+python src/preprocess.py        # Fase 2 (ri-genera file processati)
+python src/build_vocab.py       # Fase 3 (ri-genera vocabolario)
+```
+
+---
+
+## 📁 Struttura Repository
+
+```
+data/
+  raw/3gram_filtered.tsv          # 3-gram filtrati per anni 1900-2019
+  processed/
+    1900s.txt ... 2010s.txt       # 12 decenni (formato: "word1 word2 word3\tfreq")
+    vocab.json                    # Vocabolario comune (50,002 parole)
+src/
+  config.py                       # Configurazione globale
+  download_ngrams.py              # Fase 1: Scarica dati Google Books
+  preprocess.py                   # Fase 2: Aggrega per decennio (mantiene 3-gram)
+  build_vocab.py                  # Fase 3: Costruisce vocabolario
+  dataset.py                      # Fase 4: PyTorch Dataset CBOW
+  model.py                        # Fase 5: Modello CBOW
+  train.py                        # Fase 5: Training
+docs/
+  SPIEGAZIONE_PROGETTO.md         # Panoramica pipeline
+  DATASET.md                      # Dettagli dataset
+  VOCABOLARIO.md                  # Funzionamento vocabolario
+```
+
+---
+
+## 🔑 Note Importanti
+
+**3-gram e Contesto**: I file processati mantengono i **3-gram completi** (es. `"view of the\t1170392"`), non parole singole. Questo preserva il contesto reale necessario per CBOW.
+
+**Vocabolario**: Estratto automaticamente dai 3-gram, contiene solo parole singole per mapping token→indice.
+
+**Documentazione Completa**: [docs/SPIEGAZIONE_PROGETTO.md](docs/SPIEGAZIONE_PROGETTO.md)
 # 5. Attendi approvazione prima del merge su main
 ```
 

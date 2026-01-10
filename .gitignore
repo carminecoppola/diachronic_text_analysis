@@ -26,9 +26,14 @@ ENV/
 /plots/
 !plots/.gitkeep
 
-# Alignment output
-/alignment/
-!alignment/.gitkeep
+# Alignment output (ignora contenuti ma permetti struttura e symlink)
+/alignment/*
+!/alignment/.gitkeep
+!/alignment/5gram/
+!/alignment/3gram/
+/alignment/5gram/*
+/alignment/3gram/*
+!*/frequencies
 
 # IDE
 .vscode/

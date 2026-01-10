@@ -19,7 +19,7 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 
 # Import configurazioni locali
-from config import MODELS_DIR, VOCAB_FILE, EMBEDDING_DIM, get_model_path
+from src.config import MODELS_DIR, VOCAB_FILE, EMBEDDING_DIM, get_model_path
 
 class EmbeddingInspector:
     def __init__(self, decade, device="cpu"):

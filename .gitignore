@@ -15,19 +15,19 @@ env/
 ENV/
 
 # Dati (NON includere nel repository)
-data/
+/data/
 !data/.gitkeep
 
 # Modelli (NON includere nel repository)
-models/
+/models/
 !models/.gitkeep
 
 # Plots e risultati (NON includere nel repository)
-plots/
+/plots/
 !plots/.gitkeep
 
 # Alignment output
-alignment/
+/alignment/
 !alignment/.gitkeep
 
 # IDE

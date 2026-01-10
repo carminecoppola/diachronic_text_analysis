@@ -11,12 +11,12 @@ from tqdm import tqdm
 import json
 import glob
 
-from config import (
+from src.config import (
     DECADES, BATCH_SIZE, EPOCHS, LEARNING_RATE,
     EMBEDDING_DIM, VOCAB_SIZE, MODELS_DIR, get_model_path,
 )
-from dataset import CBOWDataset
-from model import CBOWModel
+from src.data.dataset import CBOWDataset
+from src.models.model import CBOWModel
 
 class Trainer:
     def __init__(self):
@@ -118,16 +118,16 @@ import glob
 
 # Importiamo config. Se SHOW_PROGRESS_BAR non c'è, mettiamo True di default
 try:
-    from config import SHOW_PROGRESS_BAR
+    from src.config import SHOW_PROGRESS_BAR
 except ImportError:
     SHOW_PROGRESS_BAR = True
 
-from config import (
+from src.config import (
     DECADES, BATCH_SIZE, EPOCHS, LEARNING_RATE,
     EMBEDDING_DIM, VOCAB_SIZE, MODELS_DIR, get_model_path,
 )
-from dataset import CBOWDataset
-from model import CBOWModel
+from src.data.dataset import CBOWDataset
+from src.models.model import CBOWModel
 
 class Trainer:
     def __init__(self):

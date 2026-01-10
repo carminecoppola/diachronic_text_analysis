@@ -15,7 +15,7 @@ import sys
 
 # Aggiungi path per importare config
 sys.path.append(os.getcwd())
-from config import get_processed_file_path
+from src.config import get_processed_file_path
 
 def search_contexts(decade, target_word, limit=0):
     file_path = get_processed_file_path(decade)

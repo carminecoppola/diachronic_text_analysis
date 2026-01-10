@@ -28,7 +28,7 @@ from collections import defaultdict
 from typing import List, Tuple
 from tqdm import tqdm
 
-from config import DATA_RAW_DIR, DATA_PROCESSED_DIR, NGRAM_TYPE, START_YEAR, END_YEAR
+from src.config import DATA_RAW_DIR, DATA_PROCESSED_DIR, NGRAM_TYPE, START_YEAR, END_YEAR
 
 # ============================================================================
 # PARAMETRI CONFIGURABILI

@@ -18,7 +18,7 @@ confrontiamo questi embeddings tra decenni diversi.
 
 import torch
 import torch.nn as nn
-from config import EMBEDDING_DIM, VOCAB_SIZE
+from src.config import EMBEDDING_DIM, VOCAB_SIZE
 
 
 class CBOWModel(nn.Module):

@@ -37,7 +37,7 @@ from collections import defaultdict
 from typing import Dict, List, Tuple
 
 # Import config
-from config import (VOCAB_FILE, VOCAB_SIZE, UNK_TOKEN, DECADES, 
+from src.config import (VOCAB_FILE, VOCAB_SIZE, UNK_TOKEN, DECADES, 
                     get_processed_file_path)
 
 

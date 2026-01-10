@@ -23,7 +23,7 @@ import random
 from torch.utils.data import Dataset
 from typing import List, Tuple
 
-from config import (
+from src.config import (
     VOCAB_FILE,
     CONTEXT_WINDOW,
     UNK_TOKEN,
@@ -170,7 +170,7 @@ import random
 from torch.utils.data import Dataset
 from typing import List, Tuple
 
-from config import (
+from src.config import (
     VOCAB_FILE,
     CONTEXT_WINDOW,
     UNK_TOKEN,
@@ -313,7 +313,7 @@ import random
 from torch.utils.data import Dataset
 from typing import Tuple
 
-from config import (
+from src.config import (
     VOCAB_FILE,
     CONTEXT_WINDOW,
     UNK_TOKEN,

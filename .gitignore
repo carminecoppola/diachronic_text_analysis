@@ -59,3 +59,7 @@ logs/
 
 checkpoints/
 
+# training artifacts
+models_compare_*/
+models_compare_*/**/*
+*.pt

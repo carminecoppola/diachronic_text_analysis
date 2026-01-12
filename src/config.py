@@ -23,7 +23,9 @@ END_YEAR = 2019  # Inclusivo (per v3 2020 dati disponibili fino al 2019)
 # Decenni da analizzare (generati automaticamente)
 # Questo genera: ["1900s", "1910s", "1920s", ..., "1990s"]
 # Ogni decade raggruppa 10 anni: 1900s = anni 1900-1909, 1910s = 1910-1919, ecc.
-DECADES = [f"{year}s" for year in range(START_YEAR, END_YEAR + 1, 10)]
+#DECADES = [f"{year}s" for year in range(START_YEAR, END_YEAR + 1, 10)]
+#TODO: DELETE THE ONE BELOW TO REMAIN THE ONE ABOVE
+DECADES = ["1900s"]
 
 # Motivazione scelta temporale:
 # - XX-XXI secolo: massimi cambiamenti semantici (tecnologia, società, digitale)
@@ -59,12 +61,65 @@ else:
 MIN_CORPUS_OCCURRENCES = 100
 
 # ============================================================================
+# PATH DATI
+# ============================================================================
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+
+# Directory separate per tipo n-gram (3gram, 5gram)
+NGRAM_SUFFIX = f"{NGRAM_TYPE}gram"
+DATA_RAW_DIR = os.path.join(DATA_DIR, "raw", NGRAM_SUFFIX)
+DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed", NGRAM_SUFFIX)
+#MODELS_DIR = os.path.join("/storage/external_01/diachronic_text_analysis/models", NGRAM_SUFFIX)
+#TODO: REMOVE THIS MODELS_DIR BELOW AND REMAIN THE ORIGINAL ONE ABOVE
+#MODELS_DIR = os.path.join(PROJECT_ROOT, "models_test_stopwords", NGRAM_SUFFIX)
+#MODELS_DIR = os.path.join(PROJECT_ROOT, "models_compare_baseline", NGRAM_SUFFIX)
+MODELS_DIR = os.path.join(PROJECT_ROOT, "models_compare_weighted_w05", NGRAM_SUFFIX)
+PLOTS_DIR = os.path.join(PROJECT_ROOT, "plots")
+ALIGNMENT_DIR = os.path.join(PROJECT_ROOT, "alignment")
+
+# File specifici
+TOTAL_COUNTS_FILE = os.path.join(DATA_RAW_DIR, "total_counts.txt")
+VOCAB_FILE = os.path.join(DATA_PROCESSED_DIR, "vocab.json")
+
+# ============================================================================
 # VOCABOLARIO
 # ============================================================================
 
 VOCAB_SIZE = 50001  # Top 50K parole + UNK
 MIN_VOCAB_FREQ = 100  # Soglia minima frequenza globale
 UNK_TOKEN = "<UNK>"  # Token per parole out-of-vocabulary
+
+# ============================================================================
+# STOPWORDS: PESATURA + SUBSAMPLING (solo per stopwords)
+#
+# Obiettivo:
+# - Le stopwords NON devono dominare il contesto CBOW.
+# - Opzione A: pesatura deterministica (stopwords contano meno ma sempre presenti)
+# - Opzione B: subsampling (stopwords a volte vengono ignorate nel contesto)
+#   -> applicato SOLO alle stopwords, così NON penalizzi parole frequenti informative.
+# ============================================================================
+
+# File stopwords congelato (generato con scripts/build_stopwords.py)
+#STOPWORDS_FILE = os.path.join(DATA_DIR, "stopwords_en.txt")
+#TODO: REMOVE THIS SCRIPTS DIR AND MERGE INTO DATA DIR COMMENTED ABOVE, AND CHANGE ALSO PATH IN BUILD_STOPWORDS.PY
+SCRIPTS_DIR = os.path.join(PROJECT_ROOT, "src", "scripts")
+STOPWORDS_FILE = os.path.join(SCRIPTS_DIR, "stopwords_en.txt")
+
+# --- (A) PESATURA deterministica stopwords nel contesto ---
+USE_STOPWORD_WEIGHTING = True
+STOPWORD_CONTEXT_WEIGHT = 0.5  # tipico: 0.1–0.3
+
+# --- (B) SUBSAMPLING stocastico SOLO per stopwords ---
+USE_STOPWORD_SUBSAMPLING = False
+STOPWORD_KEEP_PROB = 0.25  # stopwords tenute ~25% delle volte nel contesto
+
+# --- Dataset: ripetizione righe per freq (consiglio: OFF) ---
+# Se True, i 5-gram molto frequenti vengono duplicati => aumenta l'impatto delle stopwords.
+USE_FREQ_REPEATS = True
+
+
 
 # ============================================================================
 # WORD EMBEDDINGS
@@ -77,26 +132,8 @@ NEGATIVE_SAMPLES = 3  # Negative sampling
 # Training
 BATCH_SIZE = 512
 LEARNING_RATE = 0.025
-EPOCHS = 3
-
-# ============================================================================
-# PATH DATI
-# ============================================================================
-
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
-
-# Directory separate per tipo n-gram (3gram, 5gram)
-NGRAM_SUFFIX = f"{NGRAM_TYPE}gram"
-DATA_RAW_DIR = os.path.join(DATA_DIR, "raw", NGRAM_SUFFIX)
-DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed", NGRAM_SUFFIX)
-MODELS_DIR = os.path.join("/storage/external_01/diachronic_text_analysis/models", NGRAM_SUFFIX)
-PLOTS_DIR = os.path.join(PROJECT_ROOT, "plots")
-ALIGNMENT_DIR = os.path.join(PROJECT_ROOT, "alignment")
-
-# File specifici
-TOTAL_COUNTS_FILE = os.path.join(DATA_RAW_DIR, "total_counts.txt")
-VOCAB_FILE = os.path.join(DATA_PROCESSED_DIR, "vocab.json")
+#TODO: CHANGE EPOCHS TO 3 FROM 1
+EPOCHS = 1
 
 # ============================================================================
 # VISUALIZZAZIONE E LOGGING

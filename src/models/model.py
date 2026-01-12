@@ -18,7 +18,12 @@ confrontiamo questi embeddings tra decenni diversi.
 
 import torch
 import torch.nn as nn
-from src.config import EMBEDDING_DIM, VOCAB_SIZE
+from src.config import (
+    EMBEDDING_DIM, VOCAB_SIZE,
+    USE_STOPWORD_WEIGHTING, STOPWORD_CONTEXT_WEIGHT,
+    USE_STOPWORD_SUBSAMPLING,
+)
+
 
 
 class CBOWModel(nn.Module):
@@ -34,7 +39,7 @@ class CBOWModel(nn.Module):
         output_layer (nn.Linear): Layer di output (predizione target)
     """
     
-    def __init__(self, vocab_size: int = VOCAB_SIZE, embedding_dim: int = EMBEDDING_DIM):
+    def __init__(self, vocab_size: int = VOCAB_SIZE, embedding_dim: int = EMBEDDING_DIM, stopword_mask: torch.Tensor = None, stopword_keep_prob: torch.Tensor = None):
         """
         Inizializza il modello CBOW.
         
@@ -46,6 +51,31 @@ class CBOWModel(nn.Module):
         
         self.vocab_size = vocab_size
         self.embedding_dim = embedding_dim
+
+        # --------------------------------------------------------------------
+        # BLOCCO: stopwords buffers
+        #
+        # - stopword_mask: BoolTensor [vocab_size]
+        # - stopword_keep_prob: FloatTensor [vocab_size]
+        #
+        # Li registriamo come buffer così:
+        #   * si spostano su GPU con model.to(device)
+        #   * vengono salvati nello state_dict
+        # --------------------------------------------------------------------
+        self.use_stopword_weighting = bool(USE_STOPWORD_WEIGHTING and stopword_mask is not None)
+        self.use_stopword_subsampling = bool(USE_STOPWORD_SUBSAMPLING and stopword_keep_prob is not None)
+        self.stopword_weight = float(STOPWORD_CONTEXT_WEIGHT)
+
+        if self.use_stopword_weighting:
+            self.register_buffer("stopword_mask", stopword_mask.to(torch.bool))
+        else:
+            self.stopword_mask = None
+
+        if self.use_stopword_subsampling:
+            self.register_buffer("stopword_keep_prob", stopword_keep_prob.to(torch.float32))
+        else:
+            self.stopword_keep_prob = None
+
         
         # Layer embedding per il contesto
         # Mappa indici token → vettori densi
@@ -105,8 +135,35 @@ class CBOWModel(nn.Module):
         # embedded shape: [batch_size, 2*CONTEXT_WINDOW, embedding_dim]
         
         # Step 2: Average pooling sul contesto
-        # Calcola la media degli embedding del contesto
-        context_embedding = torch.mean(embedded, dim=1)
+        # ================================================================
+        # CASO 0: nessun weighting e nessun subsampling
+        # → comportamento IDENTICO allo zip originale
+        # ================================================================
+        if (not self.use_stopword_weighting) and (not self.use_stopword_subsampling):
+            context_embedding = torch.mean(embedded, dim=1)
+
+        else:
+            # ============================================================
+            # CASO 1/2: weighting e/o subsampling attivi
+            # → pooling pesato (padding escluso)
+            # ============================================================
+            weights = torch.ones_like(context_indices, dtype=embedded.dtype)
+            weights = weights.masked_fill(context_indices == 0, 0.0)
+
+            if self.use_stopword_subsampling:
+                kp = self.stopword_keep_prob[context_indices].to(embedded.dtype)
+                rnd = torch.rand(context_indices.shape, device=context_indices.device, dtype=embedded.dtype)
+                keep_mask = (rnd < kp).to(embedded.dtype)
+                weights = weights * keep_mask
+
+            if self.use_stopword_weighting:
+                sw = self.stopword_mask[context_indices]
+                weights = torch.where(sw, weights * self.stopword_weight, weights)
+
+            weighted = embedded * weights.unsqueeze(-1)
+            denom = weights.sum(dim=1, keepdim=True).clamp_min(1e-8)
+            context_embedding = weighted.sum(dim=1) / denom
+
         # context_embedding shape: [batch_size, embedding_dim]
         
         # Step 3: Predizioni (logits)

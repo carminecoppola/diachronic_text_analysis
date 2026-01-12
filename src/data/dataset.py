@@ -317,6 +317,11 @@ from src.config import (
     VOCAB_FILE,
     CONTEXT_WINDOW,
     UNK_TOKEN,
+    STOPWORDS_FILE,
+    USE_STOPWORD_WEIGHTING,
+    USE_STOPWORD_SUBSAMPLING,
+    STOPWORD_KEEP_PROB,
+    USE_FREQ_REPEATS,
     get_processed_file_path,
 )
 
@@ -326,6 +331,18 @@ class CBOWDataset(Dataset):
         
         # 1. Carica Vocabolario
         self._load_vocab()
+
+        # --------------------------------------------------------------------
+        # BLOCCO: Stopwords -> (mask per token_id) + (keep_prob per token_id)
+        #
+        # - stopword_mask[id] = True/False
+        # - stopword_keep_prob[id] = probabilità di TENERE il token nel contesto
+        #
+        # Nota: lo facciamo UNA SOLA VOLTA qui (non durante training),
+        # così in forward facciamo solo lookup per id (velocissimo).
+        # --------------------------------------------------------------------
+        self.stopword_mask, self.stopword_keep_prob = self._build_stopword_tensors()
+
         
         # 2. Carica i dati ottimizzati in Tensor
         self.contexts, self.targets = self._load_data_optimized()
@@ -344,6 +361,64 @@ class CBOWDataset(Dataset):
             self.word2idx = json.load(f)
         self.unk_idx = self.word2idx.get(UNK_TOKEN, 0)
         self.pad_idx = 0 
+
+    def _build_stopword_tensors(self):
+        """
+        ----------------------------------------------------------------------
+        BLOCCO: costruzione tensori stopwords (CPU)
+        ----------------------------------------------------------------------
+        Output:
+          - mask: BoolTensor [vocab_size]  (True se token è stopword)
+          - keep_prob: FloatTensor [vocab_size]
+              * per stopwords: STOPWORD_KEEP_PROB se USE_STOPWORD_SUBSAMPLING
+              * per non-stopwords: 1.0
+              * per pad/unk (idx 0): 0.0 (non deve contribuire)
+        ----------------------------------------------------------------------
+        """
+        vocab_size = len(self.word2idx)
+
+        # default: nessuna stopword
+        mask = torch.zeros(vocab_size, dtype=torch.bool)
+        keep_prob = torch.ones(vocab_size, dtype=torch.float32)
+
+        # sicurezza: idx 0 (pad/unk) non deve contribuire mai
+        if vocab_size > 0:
+            keep_prob[0] = 0.0
+            mask[0] = False
+
+        # Se non usiamo né weighting né subsampling, ritorniamo tensori base
+        if not (USE_STOPWORD_WEIGHTING or USE_STOPWORD_SUBSAMPLING):
+            return mask, keep_prob
+
+        if not os.path.exists(STOPWORDS_FILE):
+            raise FileNotFoundError(
+                f"Stopwords file non trovato: {STOPWORDS_FILE}. "
+                "Generalo con scripts/build_stopwords.py"
+            )
+
+        # Carica stopwords (stringhe) e normalizza in lowercase
+        with open(STOPWORDS_FILE, "r", encoding="utf-8") as f:
+            stopwords = {line.strip().lower() for line in f if line.strip()}
+
+        # Mappa stopwords -> token_id usando il vocab del progetto
+        for w, idx in self.word2idx.items():
+            if w.lower() in stopwords and 0 <= idx < vocab_size:
+                mask[idx] = True
+
+        # Imposta keep_prob SOLO per stopwords (così non penalizzi parole frequenti informative)
+        if USE_STOPWORD_SUBSAMPLING:
+            keep_prob[mask] = float(STOPWORD_KEEP_PROB)
+
+        # ribadisco: id 0 escluso
+        if vocab_size > 0:
+            keep_prob[0] = 0.0
+            mask[0] = False
+
+        print(f"  - Stopwords nel vocab: {mask.sum().item():,}")
+        if USE_STOPWORD_SUBSAMPLING:
+            print(f"  - Stopword subsampling attivo: keep_prob={STOPWORD_KEEP_PROB}")
+
+        return mask, keep_prob
 
     def _load_data_optimized(self) -> Tuple[torch.Tensor, torch.Tensor]:
         decade_file = get_processed_file_path(self.decade)
@@ -370,9 +445,16 @@ class CBOWDataset(Dataset):
             parts = line.split('\t')
             ngram_text = parts[0]
             
-            # Gestione Frequenza
+            # ----------------------------------------------------------------
+            # BLOCCO: Gestione "repeats" (duplicazione righe frequenti)
+            #
+            # Per ridurre l'impatto delle stopwords, è consigliato NON duplicare
+            # gli n-gram frequenti (spesso dominati da stopwords).
+            #
+            # Se USE_FREQ_REPEATS=True, mantieni il vecchio comportamento.
+            # ----------------------------------------------------------------
             repeats = 1
-            if len(parts) > 1:
+            if USE_FREQ_REPEATS and len(parts) > 1:
                 try:
                     freq = float(parts[1])
                     if freq > 100: repeats = 2
@@ -381,6 +463,7 @@ class CBOWDataset(Dataset):
                     repeats = min(repeats, 10)
                 except:
                     pass
+
             
             words = ngram_text.split()
             if len(words) < 2: continue

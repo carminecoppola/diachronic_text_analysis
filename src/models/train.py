@@ -152,14 +152,19 @@ class Trainer:
         dataloader = DataLoader(
             dataset,
             batch_size=BATCH_SIZE,
-            shuffle=True,
+            shuffle=False, #TODO: CHANGE TO TRUE AFTER TESTING
             num_workers=4 if self.device == "cuda" else 0,
             pin_memory=True
         )
 
         # 2. MODELLO
         actual_vocab_size = len(dataset.word2idx)
-        model = CBOWModel(actual_vocab_size, EMBEDDING_DIM).to(self.device)
+        model = CBOWModel(
+            actual_vocab_size,
+            EMBEDDING_DIM,
+            stopword_mask=dataset.stopword_mask,
+            stopword_keep_prob=dataset.stopword_keep_prob,
+        ).to(self.device)
         criterion = nn.CrossEntropyLoss()
         
         # OTTIMIZZATORE & SCHEDULER (Novità!)
@@ -183,7 +188,8 @@ class Trainer:
                 optimizer.zero_grad()
                 
                 # Mixed Precision
-                with torch.amp.autocast(enabled=(self.device=="cuda")):
+                with torch.amp.autocast(device_type="cuda" if self.device == "cuda" else "cpu",
+                        enabled=(self.device == "cuda")):
                     outputs = model(contexts)
                     loss = criterion(outputs, targets)
 
@@ -228,6 +234,14 @@ class Trainer:
             json.dump(metrics, f, indent=2)
 
 def main():
+    import random
+    import torch
+
+    random.seed(0)
+    torch.manual_seed(0)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(0)
+
     os.makedirs(MODELS_DIR, exist_ok=True)
     trainer = Trainer()
     trainer.train_all_decades()

@@ -35,6 +35,10 @@ ENV/
 /alignment/3gram/*
 !*/frequencies
 
+#Visualization output ignored (results .csv and plots)
+/results/
+/plots/
+
 # IDE
 .vscode/
 .idea/

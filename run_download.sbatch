@@ -11,8 +11,8 @@
 # ============================================================================
 # DOWNLOAD PARALLELO GOOGLE BOOKS N-GRAMS
 # ============================================================================
-# Questo script scarica 520 file (20 per ogni lettera A-Z) in parallelo
-# usando 8 worker simultanei.
+# Questo script scarica 130 file (5 per ogni lettera A-Z) in parallelo
+# usando 8 worker simultanei. Stima spazio: ~45 GB
 #
 # Uso:
 #   sbatch run_download.sbatch

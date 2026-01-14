@@ -30,34 +30,34 @@ os.makedirs(DATA_RAW_EXPANDED_DIR, exist_ok=True)
 
 OUTPUT_FILE = os.path.join(DATA_RAW_EXPANDED_DIR, f"{NGRAM_TYPE}gram_filtered_expanded.tsv")
 
-# Mappatura lettere -> range file (basata su ricerca precedente)
+# Mappatura lettere -> range file (5 file per lettera = 130 totali, ~45 GB)
 LETTER_RANGES = {
-    'a': (1350, 1370),
-    'b': (1465, 1485),
-    'c': (1553, 1573),
-    'd': (1700, 1720),
-    'e': (1766, 1786),
-    'f': (1835, 1855),
-    'g': (1900, 1920),
-    'h': (2000, 2020),
-    'i': (2075, 2095),
-    'j': (2150, 2170),
-    'k': (2200, 2220),
-    'l': (2257, 2277),
-    'm': (2325, 2345),
-    'n': (2400, 2420),
-    'o': (2450, 2470),
-    'p': (2525, 2545),
-    'q': (2575, 2595),
-    'r': (2600, 2620),
-    's': (2675, 2695),
-    't': (2825, 2845),
-    'u': (2975, 2995),
-    'v': (3025, 3045),
-    'w': (3062, 3082),
-    'x': (3090, 3110),
-    'y': (3100, 3120),
-    'z': (3115, 3135),
+    'a': (1350, 1355),
+    'b': (1465, 1470),
+    'c': (1553, 1558),
+    'd': (1700, 1705),
+    'e': (1766, 1771),
+    'f': (1835, 1840),
+    'g': (1900, 1905),
+    'h': (2000, 2005),
+    'i': (2075, 2080),
+    'j': (2150, 2155),
+    'k': (2200, 2205),
+    'l': (2257, 2262),
+    'm': (2325, 2330),
+    'n': (2400, 2405),
+    'o': (2450, 2455),
+    'p': (2525, 2530),
+    'q': (2575, 2580),
+    'r': (2600, 2605),
+    's': (2675, 2680),
+    't': (2825, 2830),
+    'u': (2975, 2980),
+    'v': (3025, 3030),
+    'w': (3062, 3067),
+    'x': (3090, 3095),
+    'y': (3100, 3105),
+    'z': (3115, 3120),
 }
 
 # Parametri download parallelo
@@ -203,9 +203,9 @@ def main():
     print("DOWNLOAD PARALLELO GOOGLE BOOKS 5-GRAM")
     print("="*70)
     print(f"Workers paralleli: {MAX_WORKERS}")
-    print(f"File per lettera: 20")
+    print(f"File per lettera: 5")
     print(f"Lettere: 26")
-    print(f"File totali: {26 * 20}")
+    print(f"File totali: 130 (~45 GB stimati)")
     print(f"Directory output: {DATA_RAW_EXPANDED_DIR}")
     print("="*70 + "\n")
     

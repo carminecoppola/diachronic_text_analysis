@@ -25,7 +25,7 @@ import os
 import re
 import unicodedata
 from collections import defaultdict
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from tqdm import tqdm
 
 from src.config import DATA_RAW_DIR, DATA_PROCESSED_DIR, NGRAM_TYPE, START_YEAR, END_YEAR
@@ -135,7 +135,9 @@ def tokenize_and_clean(text: str) -> List[str]:
     
     return cleaned
 
-def process_ngram_line(line: str) -> Tuple[List[str], int]:
+
+
+def process_ngram_line(line: str) -> Optional[Tuple[List[str], int]]:
     """
     Processa una linea del file filtrato.
     
@@ -145,7 +147,7 @@ def process_ngram_line(line: str) -> Tuple[List[str], int]:
     try:
         parts = line.strip().split('\t')
         if len(parts) < 2:
-            return None, None
+            return None
         
         ngram_text = parts[0]
         year = int(parts[1])
@@ -155,13 +157,13 @@ def process_ngram_line(line: str) -> Tuple[List[str], int]:
         
         # Scarta se dopo pulizia ha meno token del necessario
         if len(tokens) < NGRAM_TYPE:
-            return None, None
+            return None
         
         # Mantieni solo primi NGRAM_TYPE token per consistenza
         return tokens[:NGRAM_TYPE], year
         
     except (ValueError, IndexError):
-        return None, None
+        return None
 
 def aggregate_by_decade(input_file: str, output_dir: str):
     """
@@ -186,7 +188,10 @@ def aggregate_by_decade(input_file: str, output_dir: str):
     
     with open(input_file, 'r', encoding='utf-8') as f:
         for line in tqdm(f, desc="Processamento"):
-            tokens, year = process_ngram_line(line)
+            result = process_ngram_line(line)
+            if result is None:
+                continue
+            tokens, year = result
             
             if tokens is None or year is None:
                 continue
@@ -199,7 +204,7 @@ def aggregate_by_decade(input_file: str, output_dir: str):
             ngram_str = ' '.join(tokens)
             decade_data[decade][ngram_str] += 1
     
-    print(f"\n✓ Decenni trovati: {sorted(decade_data.keys())}\n")
+    print(f"\nDecenni trovati: {sorted(decade_data.keys())}\n")
     
     # Salvataggio
     os.makedirs(output_dir, exist_ok=True)
@@ -223,7 +228,7 @@ def aggregate_by_decade(input_file: str, output_dir: str):
             print(f"  → {total:,} linee scritte in {output_file}")
     
     print(f"\n{'='*70}")
-    print(f"✅ PREPROCESSING COMPLETATO")
+    print(f"PREPROCESSING COMPLETATO")
     print(f"{'='*70}\n")
     
     return True
@@ -234,11 +239,13 @@ def aggregate_by_decade(input_file: str, output_dir: str):
 
 def main():
     """Entry point del preprocessing."""
-    input_file = os.path.join(DATA_RAW_DIR, f"{NGRAM_TYPE}gram_filtered.tsv")
-    output_dir = DATA_PROCESSED_DIR
+    # Usa il file espanso come input e salva in una nuova directory
+    input_file = os.path.join("data", "raw", "5gram_expanded", "5gram_filtered_expanded.tsv")
+    output_dir = os.path.join("data", "processed", "5gram-full")
+    os.makedirs(output_dir, exist_ok=True)
     
     if not os.path.exists(input_file):
-        print(f"❌ File non trovato: {input_file}")
+        print(f"File non trovato: {input_file}")
         return False
     
     success = aggregate_by_decade(input_file, output_dir)
@@ -246,7 +253,7 @@ def main():
     if success:
         print(f"✓ File salvati in: {output_dir}")
     else:
-        print("❌ Errore durante preprocessing")
+        print("Errore durante preprocessing")
     
     return success
 

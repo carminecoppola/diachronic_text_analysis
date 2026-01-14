@@ -1,234 +1,102 @@
 # Vocabolario
 
-## Cos'è
+## Definizione
 
-Dizionario che mappa parole a indici numerici:
+Dizionario che mappa parole a indici numerici per uso nel modello CBOW.
 
+Struttura:
 ```json
 {
-  "<UNK>": 0,
-  "the": 1,
-  "of": 2,
-  "computer": 1523
+  "word2idx": {"<UNK>": 0, "the": 1, "of": 2, "computer": 1523},
+  "idx2word": ["<UNK>", "the", "of", ..., "computer", ...],
+  "word_freq": {"the": 123456789, "of": 98765432, ...}
 }
 ```
 
----
+## Funzioni
 
-## A Cosa Serve
+1. Conversione testo → numeri per modello
+2. Vocabolario comune tra tutti decenni (necessario per confronto embeddings)
+3. Gestione out-of-vocabulary con token UNK
 
-1. **Conversione testo → numeri** per il modello CBOW
-2. **Vocabolario comune** tra tutti i decenni (necessario per confrontare embeddings)
-3. **Gestione OOV** con token `<UNK>` per parole sconosciute
+## Creazione
 
----
+Script: `src/data/build_vocab.py`
 
-## Come Viene Creato
+Processo:
+1. Estrae parole singole da n-gram di tutti decenni
+2. Calcola frequenze totali cross-decade
+3. Ordina per frequenza decrescente
+4. Seleziona top 50,000
+5. Aggiunge UNK come indice 0
 
-1. Estrae parole singole dai 3-gram di tutti i decenni
-2. Calcola frequenze totali
-3. Seleziona top 50,000 più frequenti
-4. Aggiunge `<UNK>` come token speciale
-
----
+Output: `data/processed/{3gram,5gram}/vocab.json`
 
 ## Statistiche
 
-- **Dimensione**: 50,002 parole
-- **Formato**: JSON (`vocab.json`)
-- **Parole top**: "of", "and", "the", "in", "to"...
+- Dimensione: 50,001 parole (50K + UNK)
+- Top words: "the", "of", "and", "to", "in"
+- Copertura: ~99.98% del corpus
+- Parole uniche totali nel corpus: ~15M
 
-**Script**: [`src/build_vocab.py`](../src/build_vocab.py)
+## Considerazioni
 
-```
-1. Carica frequenze da 10 decenni
-   → 1900s: 10.3M parole | 1910s: 10.6M | ... | 1990s: 8.6M
+### Vocabolario Comune
 
-2. Aggrega frequenze totali
-   → 15.075.614 parole uniche attraverso il secolo
+Stesso vocabolario per tutti i decenni:
+- Permette confronto diretto tra embeddings
+- Parole nuove (post-1900) mappate a UNK
+- Focus su parole presenti attraverso il secolo
 
-3. Ordina per frequenza decrescente
-   → "the": 56B occorrenze | "of": 35B | "and": 23B | ...
+### Threshold
 
-4. Seleziona top 50.000 parole
-   → Cattura parole comuni e stabili nel tempo
+Top 50K scelto per bilanciare:
+- Copertura corpus (>99%)
+- Dimensione modello gestibile
+- Riduzione noise da parole rare
 
-5. Crea mapping parola → indice
-   → {<UNK>: 0, the: 1, of: 2, and: 3, ...}
+### Token UNK
 
-6. Salva JSON + statistiche
-```
+Gestisce:
+- Parole fuori vocabolario
+- Typos residui dopo filtering
+- Neologismi decade-specific
+- Parole sotto threshold frequenza
 
-**Tempo esecuzione**: ~5-10 minuti
+## Utilizzo nel Training
 
----
-
-## File Generati
-
-### 1. vocab.json (990KB)
-
-**Percorso**: `data/processed/vocab.json`
-
-**Utilizzo (Fase 4 - da implementare)**:
+Durante training CBOW:
 ```python
-import json
+# Conversione parola → indice
+word_idx = vocab['word2idx'].get(word, 0)  # 0 = UNK
 
-# Caricamento vocabolario
-with open('data/processed/vocab.json', 'r') as f:
-    vocab = json.load(f)
-
-# Conversione parola → indice (usata durante training CBOW)
-word = "computer"
-idx = vocab.get(word, 0)  # 0 se non trovata (<UNK>)
-print(f"{word} → {idx}")  # computer → 1523
-
-# Conversione frase → sequenza di indici
-sentence = "the computer is running"
-indices = [vocab.get(w, 0) for w in sentence.split()]
-print(indices)  # [1, 1523, 6, 892]
-
-# Questo codice sarà implementato in dataset.py (Fase 4)
+# Conversione indice → embedding
+embedding = embedding_layer(word_idx)
 ```
 
-### 2. vocab_stats.txt (1.6KB)
-
-**Percorso**: `data/processed/vocab_stats.txt`
-
-**Contenuto**:
-```
-Dimensione vocabolario: 50,001
-Token speciale UNK: <UNK>
-
-Top 20 parole più frequenti:
-     1. the        5.623378e+10
-     2. of         3.554629e+10
-     3. and        2.338277e+10
-     ...
-
-Copertura vocabolario per decennio:
-1900s: 49,999/50,000 (100.00%)
-1910s: 49,989/50,000 (99.98%)
-1940s: 50,000/50,000 (100.00%)
-...
-```
-
-**Interpretazione**: 99.98-100% copertura = parole estremamente stabili nel tempo!
-
----
-
-## Statistiche Chiave
-
-| Metrica | Valore | Nota |
-|---------|--------|------|
-| **Parole uniche totali** | 15.075.614 | Tutti i decenni |
-| **Vocabolario finale** | 50.001 | Top 50K + `<UNK>` |
-| **Copertura per decennio** | 99.98-100% | Stabilità eccellente |
-| **Dimensione file** | 990KB | Veloce da caricare |
-| **Parola più frequente** | "the" (56B) | Articolo inglese |
-
----
-
-## Parametri (`config.py`)
-
+Durante inference:
 ```python
-VOCAB_SIZE = 50000       # Top-K parole più frequenti
-MIN_VOCAB_FREQ = 100     # Soglia minima (filtra errori OCR)
-UNK_TOKEN = "<UNK>"      # Token per parole sconosciute
+# Nearest neighbors
+word_vec = embeddings[vocab['word2idx']['computer']]
+similarities = cosine_similarity(word_vec, all_embeddings)
 ```
 
-**Perché 50.000?**
-- Copre parole comuni (99.98%+ copertura)
-- Gestibile computazionalmente (50K×300 = 15M parametri)
-- Oltre 50K aggiungi soprattutto nomi propri/errori
+## Validazione
 
----
+Check post-creazione:
+- Nessun duplicato in word2idx
+- len(word2idx) = len(idx2word) = 50001
+- idx2word[0] = "UNK"
+- Sum(word_freq.values()) = totale occorrenze corpus
+- Top parole sono funzionali (the, of, and, ...)
 
-## Esempi Pratici
+## Estensione
 
-### Verificare Presenza Parola
+Per aumentare vocabolario:
+1. Modificare VOCAB_SIZE in config.py
+2. Re-run build_vocab.py
+3. Re-train tutti modelli (embeddings dimension cambia)
 
-```python
-test_words = ["computer", "internet", "smartphone", "gay"]
-
-for word in test_words:
-    if word in vocab:
-        print(f"'{word}' → indice {vocab[word]}")
-    else:
-        print(f"'{word}' → <UNK>")
-```
-
-**Output**:
-```
-'computer' → indice 1523
-'internet' → indice 15234
-'smartphone' → <UNK>
-'gay' → indice 2891
-```
-
-### Reverse Mapping (Indice → Parola)
-
-```python
-# Crea mapping inverso
-idx_to_word = {idx: word for word, idx in vocab.items()}
-
-# Decodifica
-indices = [1, 1523, 6, 892]
-decoded = " ".join([idx_to_word[idx] for idx in indices])
-print(decoded)  # "the computer is running"
-```
-
----
-
-## Come Rigenerare
-
-```bash
-source .venv/bin/activate
-python src/build_vocab.py
-```
-
-**Output atteso**:
-```
-COSTRUZIONE VOCABOLARIO COMUNE
-Caricamento frequenze da tutti i decenni...
-  1900s... 10,368,304 parole
-  1910s... 10,643,476 parole
-  ...
-Parole uniche totali: 15,075,614
-Vocabolario costruito: 50,001 parole
-Salvato in: data/processed/vocab.json
-FASE 3 COMPLETATA
-```
-
----
-
-## File Correlati
-
-- **Generato da**: [`src/build_vocab.py`](../src/build_vocab.py) - Fase 3 ✅
-- **Configurazione**: [`src/config.py`](../src/config.py)
-- **Input**: `data/processed/*.txt` (output `preprocess.py`)
-- **Usato da**: `dataset.py` (Fase 4 - da implementare) e `train.py` (Fase 5)
-
----
-
-## FAQ
-
-**Q: Perché comune a tutti i decenni?**
-A: Per confrontare significato parole nel tempo, serve stesso indice sempre.
-
-**Q: Cosa succede a parole fuori vocabolario?**
-A: Mappate a indice 0 (`<UNK>`). Durante training, `<UNK>` impara embedding generico.
-
-**Q: Posso usare vocab più grande (100K)?**
-A: Sì, modifica `VOCAB_SIZE` in `config.py`. Ma oltre 50K aggiungi poco valore (nomi propri/errori).
-
-**Q: Perché "the" così frequente?**
-A: È l'articolo inglese più usato. Normale (Legge di Zipf): poche parole dominano.
-
-**Q: File JSON è efficiente?**
-A: Sì, 990KB si carica in millisecondi. JSON è leggibile e portabile.
-
----
-
-**Creato**: 5 Gennaio 2026
-**Fase**: 3/10 (Completata)
-**Dettagli dataset**: [DATASET.md](DATASET.md)
+Trade-off:
+- Vocab più grande: maggiore copertura, più parametri, training più lento
+- Vocab più piccolo: meno parametri, training veloce, più UNK

@@ -58,6 +58,9 @@ else:
 
 MIN_CORPUS_OCCURRENCES = 100
 
+# Filtraggio n-gram
+ONLY_ALPHABETIC = True  # Mantieni solo n-gram con parole alfabetiche
+
 # ============================================================================
 # VOCABOLARIO
 # ============================================================================
@@ -94,6 +97,10 @@ MODELS_DIR = os.path.join("/storage/external_01/diachronic_text_analysis/models"
 PLOTS_DIR = os.path.join(PROJECT_ROOT, "plots")
 ALIGNMENT_DIR = os.path.join(PROJECT_ROOT, "alignment")
 
+# Directory per dataset espanso (distribuzione alfabetica bilanciata)
+DATA_RAW_EXPANDED_DIR = os.path.join(DATA_DIR, "raw", f"{NGRAM_SUFFIX}_expanded")
+DATA_PROCESSED_EXPANDED_DIR = os.path.join(DATA_DIR, "processed", f"{NGRAM_SUFFIX}_expanded")
+
 # File specifici
 TOTAL_COUNTS_FILE = os.path.join(DATA_RAW_DIR, "total_counts.txt")
 VOCAB_FILE = os.path.join(DATA_PROCESSED_DIR, "vocab.json")
@@ -120,7 +127,8 @@ SHOW_PROGRESS_BAR = True
 
 def create_directories():
     """Crea directory necessarie."""
-    for d in [DATA_RAW_DIR, DATA_PROCESSED_DIR, MODELS_DIR, PLOTS_DIR, ALIGNMENT_DIR]:
+    for d in [DATA_RAW_DIR, DATA_PROCESSED_DIR, MODELS_DIR, PLOTS_DIR, ALIGNMENT_DIR, 
+              DATA_RAW_EXPANDED_DIR, DATA_PROCESSED_EXPANDED_DIR]:
         os.makedirs(d, exist_ok=True)
 
 def get_decade_from_year(year: int) -> str:

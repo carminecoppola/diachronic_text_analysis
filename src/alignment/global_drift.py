@@ -6,13 +6,15 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import DECADES
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-
-MODELS_DIR = PROJECT_ROOT / "models" / "5gram"
-VOCAB_FILE = PROJECT_ROOT / "data" / "processed" / "5gram" / "vocab.json"
-ALIGNMENT_DIR = PROJECT_ROOT / "src" / "alignment" / "transforms"
-OUT_DIR = PROJECT_ROOT / "src" / "alignment" / "global_results"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+# Configuration
+from config import (
+    VOCAB_FILE,
+    MODELS_DIR,
+    ALIGNMENT_TRANSFORMS_DIR,
+    ALIGNMENT_GLOBAL_RESULTS_DIR,
+)
+Path(ALIGNMENT_TRANSFORMS_DIR).mkdir(parents=True, exist_ok=True)
+Path(ALIGNMENT_GLOBAL_RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 
 
 def load_common_vocab(path: Path) -> dict:
@@ -20,12 +22,12 @@ def load_common_vocab(path: Path) -> dict:
         return json.load(f)
 
 def load_embedding_matrix_pt(decade: str) -> np.ndarray:
-    pt_path = MODELS_DIR / f"emb_{decade}.pt"
+    pt_path = Path(MODELS_DIR) / f"emb_{decade}.pt"
     state = torch.load(pt_path, map_location="cpu")
     return state["embeddings.weight"].detach().cpu().numpy()
 
 def load_alignment_pair(d_t: str, d_t1: str):
-    path = ALIGNMENT_DIR / f"alignment_{d_t}_to_{d_t1}.pt"
+    path = Path(ALIGNMENT_TRANSFORMS_DIR) / f"alignment_{d_t}_to_{d_t1}.pt"
     obj = torch.load(path, map_location="cpu")
     return {
         "R": obj["R"].numpy(),
@@ -86,7 +88,7 @@ def main():
         drift = 1.0 - sim
         trajectory.append({"decade": d, "cosine_to_2010s": sim, "drift_to_2010s": drift})
 
-    out_path = OUT_DIR / f"trajectory_{target_word}_to_{ref}.json"
+    out_path = Path(ALIGNMENT_GLOBAL_RESULTS_DIR) / f"oTrajectory_{target_word}_to_{ref}.json"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(trajectory, f, ensure_ascii=False, indent=2)
 

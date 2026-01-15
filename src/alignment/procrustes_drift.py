@@ -17,11 +17,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import DECADES
 
 # Configuration
-from src.config import ALIGNMENT_TRANSFORMS_DIR, ALIGNMENT_DRIFT_RESULTS_DIR, ALIGNMENT_GLOBAL_RESULTS_DIR
-from pathlib import Path
+from config import (
+    VOCAB_FILE,
+    FREQUENCIES_DIR,
+    MODELS_DIR,
+    ALIGNMENT_TRANSFORMS_DIR,
+    ALIGNMENT_DRIFT_RESULTS_DIR,
+)
 Path(ALIGNMENT_TRANSFORMS_DIR).mkdir(parents=True, exist_ok=True)
 Path(ALIGNMENT_DRIFT_RESULTS_DIR).mkdir(parents=True, exist_ok=True)
-Path(ALIGNMENT_GLOBAL_RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 
 def load_common_vocab(vocab_file: Path = VOCAB_FILE) -> dict:
     with open(vocab_file, "r", encoding="utf-8") as f:
@@ -404,7 +408,7 @@ def main():
             "min_count": global_min_count,
         }
 
-        out_path = Path(ALIGNMENT_DIR) / f"alignment_{d_t}_to_{d_t1}.pt"
+        out_path = Path(ALIGNMENT_TRANSFORMS_DIR) / f"alignment_{d_t}_to_{d_t1}.pt"
         torch.save(alignment_obj, out_path)
         print(f"Saved alignment: {out_path}")
     
@@ -515,7 +519,7 @@ def main():
             for i in top_idx
         ]
 
-        out_file = DRIFT_OUTPUT_DIR / f"drift_{d_t}_to_{d_t1}.json"
+        out_file = Path(ALIGNMENT_DRIFT_RESULTS_DIR) / f"drift_{d_t}_to_{d_t1}.json"
 
         with open(out_file, "w", encoding="utf-8") as f:
             json.dump(out_data, f, ensure_ascii=False, indent=2)

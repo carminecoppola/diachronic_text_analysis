@@ -11,6 +11,7 @@ Modificare qui per cambiare comportamento globale del progetto.
 """
 
 import os
+from pathlib import Path
 
 # ============================================================================
 # PERIODO TEMPORALE
@@ -101,15 +102,15 @@ Esempio di utilizzo:
 """
 
 # Directory separate per tipo n-gram (3gram, 5gram)
-NGRAM_SUFFIX = f"{NGRAM_TYPE}gram"
+NGRAM_SUFFIX = f"{NGRAM_TYPE}gram-full"
 DATA_RAW_DIR = os.path.join(
     os.environ.get("DATA_DIR", DATA_DIR), "raw", NGRAM_SUFFIX)
 DATA_PROCESSED_DIR = os.path.join(
     os.environ.get("DATA_DIR", DATA_DIR), "processed", NGRAM_SUFFIX)
-MODELS_DIR = os.environ.get(
+MODELS_DIR = Path(os.environ.get(
     "MODELS_DIR",
     os.path.join(PROJECT_ROOT, "models", NGRAM_SUFFIX)
-)
+))
 PLOTS_DIR = os.environ.get(
     "PLOTS_DIR",
     os.path.join(PROJECT_ROOT, "plots")
@@ -128,7 +129,8 @@ DATA_PROCESSED_EXPANDED_DIR = os.path.join(DATA_DIR, "processed", f"{NGRAM_SUFFI
 
 # File specifici
 TOTAL_COUNTS_FILE = os.path.join(DATA_RAW_DIR, "total_counts.txt")
-VOCAB_FILE = os.path.join(DATA_PROCESSED_DIR, "vocab.json")
+VOCAB_FILE = os.environ.get("VOCAB_PATH", os.path.join(DATA_PROCESSED_DIR,"vocab.json"))
+FREQUENCIES_DIR = Path(os.environ.get("FREQUENCIES_DIR", os.path.join(ALIGNMENT_BASE, NGRAM_SUFFIX, "frequencies")))
 
 # ============================================================================
 # VISUALIZZAZIONE E LOGGING
@@ -152,7 +154,7 @@ SHOW_PROGRESS_BAR = True
 
 def create_directories():
     """Crea directory necessarie."""
-    for d in [DATA_RAW_DIR, DATA_PROCESSED_DIR, MODELS_DIR, PLOTS_DIR, ALIGNMENT_DIR, 
+    for d in [DATA_RAW_DIR, DATA_PROCESSED_DIR, MODELS_DIR, PLOTS_DIR, ALIGNMENT_ROOT, 
               DATA_RAW_EXPANDED_DIR, DATA_PROCESSED_EXPANDED_DIR]:
         os.makedirs(d, exist_ok=True)
 

@@ -12,13 +12,12 @@ from src.visualization.neighbors import write_neighbors_csv
 from src.visualization.plotting import plot_pca_window, plot_tsne
 
 
-PROJECT_ROOT = Path.cwd()
-MODELS_DIR = PROJECT_ROOT / "models" / "5gram"
-VOCAB_FILE = PROJECT_ROOT / "data" / "processed" / "5gram" / "vocab.json"
-ALIGNMENT_DIR = PROJECT_ROOT / "src" / "alignment" / "transforms"
+from src.config import MODELS_DIR, VOCAB_FILE, ALIGNMENT_TRANSFORMS_DIR, PLOTS_DIR
 
-PLOTS_DIR_DEFAULT = PROJECT_ROOT / "plots"
-RESULTS_DIR_DEFAULT = PROJECT_ROOT / "results"
+from pathlib import Path
+ALIGNMENT_DIR = Path(ALIGNMENT_TRANSFORMS_DIR)
+PLOTS_DIR_DEFAULT = PLOTS_DIR
+RESULTS_DIR_DEFAULT = "results"
 
 
 def main():

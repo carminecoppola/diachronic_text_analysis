@@ -1,0 +1,7 @@
+Word: virus
+Across decades, mean cosine ranges from 0.324 to 0.538 (range 0.214).
+The largest decade-to-decade change in mean cosine is 0.092, between 1920s and 1930s.
+Average dispersion (max–min cosine within a decade) is 0.067, with a peak dispersion of 0.179 in the 1980s.
+The most stable adjacent-decade interval (smallest mean-cosine step) is 0.002 between 1930s and 1940s.
+Overall, the time series shows non-trivial variation, consistent with semantic drift in the neighborhood.
+The wide dispersion peak suggests a decade with less coherent nearest-neighbor structure (higher variability).

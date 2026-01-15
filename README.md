@@ -61,26 +61,6 @@ python src/alignment/global_drift.py
 python src/visualization/visualize_drift.py --words computer --pca --tsne
 ```
 
-### Configurazione
-
-Tutti i parametri del progetto sono centralizzati in [src/config.py](src/config.py):
-- Periodo temporale e decenni
-- Tipo di N-gram (3gram o 5gram)
-- Parametri embeddings (dimensione, learning rate, epochs)
-- Path di dati, modelli, plot e alignment
-
-**Path configurabili tramite variabili d'ambiente:**
-- `DATA_DIR`: directory principale dei dati
-- `MODELS_DIR`: directory dove salvare i modelli  
-- `PLOTS_DIR`: directory per i plot
-- `ALIGNMENT_BASE`: directory base per alignment
-- `ALIGNMENT_NGRAM`: sottocartella per tipo n-gram (es. `5gram-full`)
-- `ALIGNMENT_SUBDIR`: sottocartella personalizzata per transforms (opzionale)
-- `VOCAB_PATH`: path del file vocabulary
-- `FREQUENCIES_DIR`: directory delle frequenze
-
-Se le variabili d'ambiente non sono specificate, vengono usati i path di default relativi alla struttura del progetto.
-
 ## Contributi
 
 Branch `main` protetto: creare sempre branch personale e aprire Pull Request.

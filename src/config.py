@@ -89,14 +89,35 @@ EPOCHS = 3
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 
+"""
+I path principali sono ora configurabili tramite variabili d'ambiente:
+  - DATA_DIR: directory principale dei dati
+  - MODELS_DIR: directory dove salvare i modelli
+  - PLOTS_DIR: directory per i plot
+  - ALIGNMENT_DIR: directory per alignment
+Se non specificate, vengono usati i path di default relativi al progetto.
+Esempio di utilizzo:
+  DATA_DIR=/percorso/dati MODELS_DIR=/percorso/modelli python src/models/train.py
+"""
+
 # Directory separate per tipo n-gram (3gram, 5gram)
 NGRAM_SUFFIX = f"{NGRAM_TYPE}gram"
-DATA_RAW_DIR = os.path.join(DATA_DIR, "raw", NGRAM_SUFFIX)
-# DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed", NGRAM_SUFFIX)
-DATA_PROCESSED_DIR = "/home/vbucciero/diachronic_text_analysis/data/processed/5gram-full"
-MODELS_DIR = os.path.join("/storage/external_01/diachronic_text_analysis/models", NGRAM_SUFFIX)
-PLOTS_DIR = os.path.join(PROJECT_ROOT, "plots")
-ALIGNMENT_DIR = os.path.join(PROJECT_ROOT, "alignment")
+DATA_RAW_DIR = os.path.join(
+    os.environ.get("DATA_DIR", DATA_DIR), "raw", NGRAM_SUFFIX)
+DATA_PROCESSED_DIR = os.path.join(
+    os.environ.get("DATA_DIR", DATA_DIR), "processed", NGRAM_SUFFIX)
+MODELS_DIR = os.environ.get(
+    "MODELS_DIR",
+    os.path.join(PROJECT_ROOT, "models", NGRAM_SUFFIX)
+)
+PLOTS_DIR = os.environ.get(
+    "PLOTS_DIR",
+    os.path.join(PROJECT_ROOT, "plots")
+)
+ALIGNMENT_DIR = os.environ.get(
+    "ALIGNMENT_DIR",
+    os.path.join(PROJECT_ROOT, "alignment")
+)
 
 # Directory per dataset espanso (distribuzione alfabetica bilanciata)
 DATA_RAW_EXPANDED_DIR = os.path.join(DATA_DIR, "raw", f"{NGRAM_SUFFIX}_expanded")

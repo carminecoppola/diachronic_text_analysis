@@ -1,3 +1,20 @@
+### Esempio: output alignment separati
+
+Per generare i file di alignment per un dataset specifico (es. 5gram-full) e salvarli nella struttura corretta:
+
+```bash
+# Output in alignment/5gram-full/drift_results, .../global_results, .../transforms
+ALIGNMENT_NGRAM=5gram-full python src/alignment/procrustes_drift.py
+```
+
+Per usare una sottocartella personalizzata per i tuoi alignment (es. test_camilla):
+
+```bash
+ALIGNMENT_NGRAM=5gram-full ALIGNMENT_SUBDIR=test_camilla python src/alignment/procrustes_drift.py
+# Output in alignment/5gram-full/test_camilla
+```
+
+Le directory vengono create automaticamente se non esistono.
 # Diachronic Text Analysis
 
 Analisi dell'evoluzione semantica delle parole nel XX-XXI secolo tramite word embeddings CBOW allenati su Google Books N-grams.

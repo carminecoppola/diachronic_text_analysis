@@ -17,13 +17,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import DECADES
 
 # Configuration
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-FREQUENCIES_DIR = PROJECT_ROOT / "alignment" / "5gram" / "frequencies"
-MODELS_DIR = PROJECT_ROOT / "models"/ "5gram"  
-VOCAB_FILE = PROJECT_ROOT / "data" / "processed" / "5gram" / "vocab.json"
-DRIFT_OUTPUT_DIR = PROJECT_ROOT / "src" / "alignment" / "drift_results"
-ALIGNMENT_DIR = PROJECT_ROOT / "src" / "alignment" / "transforms"
-ALIGNMENT_DIR.mkdir(parents=True, exist_ok=True)
+from src.config import ALIGNMENT_TRANSFORMS_DIR, ALIGNMENT_DRIFT_RESULTS_DIR, ALIGNMENT_GLOBAL_RESULTS_DIR
+from pathlib import Path
+Path(ALIGNMENT_TRANSFORMS_DIR).mkdir(parents=True, exist_ok=True)
+Path(ALIGNMENT_DRIFT_RESULTS_DIR).mkdir(parents=True, exist_ok=True)
+Path(ALIGNMENT_GLOBAL_RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 
 def load_common_vocab(vocab_file: Path = VOCAB_FILE) -> dict:
     with open(vocab_file, "r", encoding="utf-8") as f:
@@ -406,11 +404,9 @@ def main():
             "min_count": global_min_count,
         }
 
-        out_path = ALIGNMENT_DIR / f"alignment_{d_t}_to_{d_t1}.pt"
-
+        out_path = Path(ALIGNMENT_DIR) / f"alignment_{d_t}_to_{d_t1}.pt"
         torch.save(alignment_obj, out_path)
-
-        print(f"Saved alignment: {out_path.name}\n")
+        print(f"Saved alignment: {out_path}")
     
         # Step 5: Apply alignment
         print(f"{'='*60}")

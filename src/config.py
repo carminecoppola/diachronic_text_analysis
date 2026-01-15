@@ -114,10 +114,13 @@ PLOTS_DIR = os.environ.get(
     "PLOTS_DIR",
     os.path.join(PROJECT_ROOT, "plots")
 )
-ALIGNMENT_DIR = os.environ.get(
-    "ALIGNMENT_DIR",
-    os.path.join(PROJECT_ROOT, "alignment")
-)
+# Permetti di specificare una sottocartella per gli alignment (es: "camilla_test")
+ALIGNMENT_BASE = os.environ.get("ALIGNMENT_BASE", os.path.join(PROJECT_ROOT, "alignment"))
+ALIGNMENT_NGRAM = os.environ.get("ALIGNMENT_NGRAM", NGRAM_SUFFIX)
+ALIGNMENT_ROOT = os.path.join(ALIGNMENT_BASE, ALIGNMENT_NGRAM)
+ALIGNMENT_TRANSFORMS_DIR = os.path.join(ALIGNMENT_ROOT, os.environ.get("ALIGNMENT_SUBDIR", "transforms"))
+ALIGNMENT_DRIFT_RESULTS_DIR = os.path.join(ALIGNMENT_ROOT, "drift_results")
+ALIGNMENT_GLOBAL_RESULTS_DIR = os.path.join(ALIGNMENT_ROOT, "global_results")
 
 # Directory per dataset espanso (distribuzione alfabetica bilanciata)
 DATA_RAW_EXPANDED_DIR = os.path.join(DATA_DIR, "raw", f"{NGRAM_SUFFIX}_expanded")

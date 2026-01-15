@@ -61,35 +61,25 @@ python src/alignment/global_drift.py
 python src/visualization/visualize_drift.py --words computer --pca --tsne
 ```
 
+### Configurazione
 
+Tutti i parametri del progetto sono centralizzati in [src/config.py](src/config.py):
+- Periodo temporale e decenni
+- Tipo di N-gram (3gram o 5gram)
+- Parametri embeddings (dimensione, learning rate, epochs)
+- Path di dati, modelli, plot e alignment
 
-### Configurazione dei Path (per tutti)
-
-Per rendere la configurazione dei path semplice e condivisibile tra tutti gli utenti, è fornito il file `.env.local.example` nella root del progetto.
-
-**Come usare:**
-
-1. Copia il file `.env.local.example` in `.env.local`:
-	```bash
-	cp .env.local.example .env.local
-	```
-2. Modifica i path all'interno di `.env.local` secondo la tua struttura locale.
-	Puoi usare symlink per puntare a storage esterni condivisi (es. `/storage/external_01/...`).
-3. Carica le variabili d'ambiente prima di lanciare gli script:
-	```bash
-	export $(grep -v '^#' .env.local | xargs)
-	```
-	oppure aggiungi le variabili al tuo `.bashrc`/`.zshrc`.
-
-**Path configurabili tramite .env:**
+**Path configurabili tramite variabili d'ambiente:**
 - `DATA_DIR`: directory principale dei dati
-- `MODELS_DIR`: directory dove salvare i modelli
+- `MODELS_DIR`: directory dove salvare i modelli  
 - `PLOTS_DIR`: directory per i plot
-- `ALIGNMENT_DIR`: directory per alignment
+- `ALIGNMENT_BASE`: directory base per alignment
+- `ALIGNMENT_NGRAM`: sottocartella per tipo n-gram (es. `5gram-full`)
+- `ALIGNMENT_SUBDIR`: sottocartella personalizzata per transforms (opzionale)
+- `VOCAB_PATH`: path del file vocabulary
+- `FREQUENCIES_DIR`: directory delle frequenze
 
-Se le variabili non sono specificate, verranno usati i path di default relativi alla struttura del progetto.
-
-Per cambiare altri parametri (periodo temporale, tipo n-gram, dimensione embeddings, ecc.), modificare direttamente [src/config.py](src/config.py).
+Se le variabili d'ambiente non sono specificate, vengono usati i path di default relativi alla struttura del progetto.
 
 ## Contributi
 

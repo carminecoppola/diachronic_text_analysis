@@ -10,6 +10,15 @@ USO:
 
 import os
 import sys
+
+# --- AGGIUNGI QUESTO BLOCCO ---
+# Ottieni il percorso assoluto della root del progetto
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Sale di due livelli: src/utils -> src -> ROOT
+project_root = os.path.abspath(os.path.join(current_dir, '../..'))
+sys.path.append(project_root)
+# ------------------------------
+
 import torch
 import json
 import numpy as np

@@ -68,7 +68,8 @@ echo ""
 
 # Esegui training
 echo "🚀 Starting training..."
-python src/train.py
+# python src/train.py
+python /home/vbucciero/diachronic_text_analysis/src/models/train.py
 
 # Cattura exit code
 EXIT_CODE=$?

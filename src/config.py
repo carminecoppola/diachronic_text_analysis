@@ -92,7 +92,8 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 # Directory separate per tipo n-gram (3gram, 5gram)
 NGRAM_SUFFIX = f"{NGRAM_TYPE}gram"
 DATA_RAW_DIR = os.path.join(DATA_DIR, "raw", NGRAM_SUFFIX)
-DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed", NGRAM_SUFFIX)
+# DATA_PROCESSED_DIR = os.path.join(DATA_DIR, "processed", NGRAM_SUFFIX)
+DATA_PROCESSED_DIR = "/home/vbucciero/diachronic_text_analysis/data/processed/5gram-full"
 MODELS_DIR = os.path.join("/storage/external_01/diachronic_text_analysis/models", NGRAM_SUFFIX)
 PLOTS_DIR = os.path.join(PROJECT_ROOT, "plots")
 ALIGNMENT_DIR = os.path.join(PROJECT_ROOT, "alignment")

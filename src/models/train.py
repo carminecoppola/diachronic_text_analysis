@@ -183,7 +183,7 @@ class Trainer:
                 optimizer.zero_grad()
                 
                 # Mixed Precision
-                with torch.amp.autocast(enabled=(self.device=="cuda")):
+                with torch.cuda.amp.autocast(enabled=(self.device=="cuda")):
                     outputs = model(contexts)
                     loss = criterion(outputs, targets)
 

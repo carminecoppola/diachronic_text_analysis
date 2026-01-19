@@ -11,6 +11,12 @@ Output: a single PNG (default into plots/) showing:
     label = neighbor word
 """
 
+# This script differs from diachronic_associations.py:
+# - It does NOT load embeddings
+# - It does NOT recompute neighbors
+# - It only reads already-produced per-decade results CSVs
+# This makes it useful when results were computed once and plots are regenerated many times.
+
 import argparse
 from pathlib import Path
 import re
@@ -22,10 +28,24 @@ from adjustText import adjust_text
 from src.config import DECADES, PLOTS_DIR
 
 
+# Regex used to parse decade labels like "1900s" -> "1900"
 DECADE_RE = re.compile(r"^(\d{4})s$")
 
 
 def decade_to_year(dec: str) -> int:
+    """
+    Convert decade label into start year integer.
+
+    Parameters
+    ----------
+    dec : str
+        Decade label (e.g., "1910s").
+
+    Returns
+    -------
+    int
+        Start year (e.g., 1910).
+    """
     m = DECADE_RE.match(dec)
     if not m:
         raise ValueError(f"Invalid decade format: {dec!r} (expected '1900s', '1910s', ...)")
@@ -33,6 +53,21 @@ def decade_to_year(dec: str) -> int:
 
 
 def decade_slice(from_dec: str | None, to_dec: str | None) -> list[str]:
+    """
+    Return a contiguous slice of DECADES between from_dec and to_dec inclusive.
+
+    If both bounds are None, return all decades.
+
+    Parameters
+    ----------
+    from_dec, to_dec : str | None
+        Decade bounds.
+
+    Returns
+    -------
+    list[str]
+        Decade labels in chronological order.
+    """
     if from_dec is None and to_dec is None:
         return list(DECADES)
     if from_dec is None:
@@ -52,7 +87,15 @@ def decade_slice(from_dec: str | None, to_dec: str | None) -> list[str]:
 
 def read_neighbors_csv(csv_path: Path) -> list[tuple[str, str, int, str, float]]:
     """
-    Returns list of rows: (word, decade, rank, neighbor, cosine)
+    Read a neighbors CSV produced by the visualization pipeline.
+
+    Expected header:
+        word,decade,rank,neighbor,cosine
+
+    Returns
+    -------
+    list[tuple[str, str, int, str, float]]
+        Rows in the form: (word, decade, rank, neighbor, cosine)
     """
     rows = []
     with open(csv_path, "r", encoding="utf-8") as f:
@@ -85,7 +128,26 @@ def plot_diachronic_associations(
     min_cos: float | None = None,
 ):
     """
-    points: list of (year, cosine, label)
+    Plot diachronic association points with label overlap avoidance.
+
+    points is a list of:
+        (year, cosine, label)
+
+    The data points remain fixed.
+    Only the text labels are moved via adjustText for readability.
+
+    Parameters
+    ----------
+    points : list[tuple[int, float, str]]
+        (year, cosine, neighbor_label)
+    out_png : Path
+        Output path for the PNG.
+    title : str
+        Plot title.
+    y_label : str
+        Y-axis label.
+    min_cos : float | None
+        Optional y-axis lower bound.
     """
     years = np.array([p[0] for p in points], dtype=float)
     cos = np.array([p[1] for p in points], dtype=float)
@@ -94,21 +156,24 @@ def plot_diachronic_associations(
     fig, ax = plt.subplots(figsize=(13, 4))
     ax.scatter(years, cos, s=30, zorder=2)
 
-    # Add texts at the point locations; adjustText will move ONLY texts later.
+    # Create text labels at the original point positions.
+    # adjustText will move ONLY these text objects.
     texts = [ax.text(x, y, lab, fontsize=8, zorder=3) for x, y, lab in zip(years, cos, labels)]
 
     # ---- Expand axes automatically to create "room" for labels ----
-    # X: add a small constant margin (years are discrete)
+    # X: years are discrete; add a constant margin for label placement.
     x_min, x_max = years.min(), years.max()
     ax.set_xlim(x_min - 5, x_max + 5)
 
-    # Y: proportional padding (robust to small ranges)
+    # Y: add proportional padding to avoid a cramped vertical scale.
+    # This is robust even when values are close together.
     y_min, y_max = cos.min(), cos.max()
     dy = y_max - y_min
     if dy <= 1e-9:
-        dy = 0.05  # fallback if all cosines equal
+        dy = 0.05  # fallback if all cosines are equal or nearly equal
     ax.set_ylim(y_min - 0.35 * dy, y_max + 0.35 * dy)
 
+    # Optional lower bound (useful for consistent scaling across figures)
     if min_cos is not None:
         ax.set_ylim(bottom=min_cos)
 
@@ -132,6 +197,7 @@ def plot_diachronic_associations(
 
 
 def main():
+    # CLI for generating the plot from existing per-decade neighbors CSV files
     ap = argparse.ArgumentParser(
         description="Plot diachronic associations from existing results/neighbors_<decade>.csv files."
     )
@@ -144,16 +210,19 @@ def main():
     ap.add_argument("--out_png", default=None, help="Optional explicit output path for PNG.")
     args = ap.parse_args()
 
+    # Select the time window (or all decades)
     decs = decade_slice(args.from_decade, args.to_decade)
 
+    # Validate results directory
     results_dir = Path(args.results_dir)
     if not results_dir.exists():
         raise FileNotFoundError(f"results_dir not found: {results_dir}")
 
-    # Collect points across decades
+    # Collect (year, cosine, neighbor) points across all selected decades
     points: list[tuple[int, float, str]] = []
 
     for dec in decs:
+        # Each decade is expected to have a file results/neighbors_<decade>.csv
         csv_path = results_dir / f"neighbors_{dec}.csv"
         if not csv_path.exists():
             raise FileNotFoundError(
@@ -163,15 +232,20 @@ def main():
 
         rows = read_neighbors_csv(csv_path)
 
-        # Filter rows for target word and topk
+        # Keep only the requested word and top-k ranks
         rows = [r for r in rows if r[0] == args.word and r[2] <= args.topk]
 
+        # Convert decade label to numeric year for plotting
         year = decade_to_year(dec)
+
+        # Add one point per neighbor (rank 1..topk) for this decade
         for (word, decade, rank, neighbor, cosine) in rows:
+            # Skip non-finite values defensively
             if not np.isfinite(cosine):
                 continue
             points.append((year, cosine, neighbor))
 
+    # If no points were collected, plotting would be meaningless; raise an explicit error
     if len(points) == 0:
         raise ValueError(
             f"No points found for word={args.word!r} in the selected decades.\n"
@@ -181,7 +255,9 @@ def main():
             f"- that --topk is not too small\n"
         )
 
-    # Output path
+    # Output path:
+    # - default: use configured PLOTS_DIR and an informative name
+    # - or use user-provided --out_png
     if args.out_png is None:
         out_dir = Path(PLOTS_DIR)
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -192,6 +268,7 @@ def main():
     title = f'Diachronic associations for "{args.word}": neighbors & cosine similarity'
     y_label = f"Cosine similarity to '{args.word}'"
 
+    # Produce the plot
     plot_diachronic_associations(
         points=points,
         out_png=out_png,
@@ -200,6 +277,7 @@ def main():
         min_cos=args.min_cos,
     )
 
+    # Print output path for convenience in terminal workflows
     print(f"Wrote {out_png}")
 
 

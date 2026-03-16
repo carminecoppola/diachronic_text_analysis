@@ -82,9 +82,12 @@ EPOCHS = 3
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 
+# Base data directory - configurable via environment variable for all data path resolution
+BASE_DATA_DIR = os.environ.get("DATA_DIR", DATA_DIR)
+
 """
 Main paths are configurable via environment variables:
-  - DATA_DIR: main data directory
+  - DATA_DIR: main data directory (used for raw, processed, expanded data)
   - MODELS_DIR: model save directory
   - PLOTS_DIR: plots directory
   - ALIGNMENT_DIR: alignment directory
@@ -95,10 +98,8 @@ Usage: DATA_DIR=/path/to/data MODELS_DIR=/path/to/models python src/models/train
 
 # Separate directories by n-gram type (3gram, 5gram)
 NGRAM_SUFFIX = f"{NGRAM_TYPE}gram-full"
-DATA_RAW_DIR = os.path.join(
-    os.environ.get("DATA_DIR", DATA_DIR), "raw", NGRAM_SUFFIX)
-DATA_PROCESSED_DIR = os.path.join(
-    os.environ.get("DATA_DIR", DATA_DIR), "processed", NGRAM_SUFFIX)
+DATA_RAW_DIR = os.path.join(BASE_DATA_DIR, "raw", NGRAM_SUFFIX)
+DATA_PROCESSED_DIR = os.path.join(BASE_DATA_DIR, "processed", NGRAM_SUFFIX)
 MODELS_DIR = Path(os.environ.get(
     "MODELS_DIR",
     os.path.join(PROJECT_ROOT, "models", NGRAM_SUFFIX)
@@ -115,8 +116,8 @@ ALIGNMENT_DRIFT_RESULTS_DIR = os.path.join(ALIGNMENT_ROOT, "drift_results")
 ALIGNMENT_GLOBAL_RESULTS_DIR = os.path.join(ALIGNMENT_ROOT, "global_results")
 
 # Expanded dataset directories (balanced alphabetical distribution)
-DATA_RAW_EXPANDED_DIR = os.path.join(DATA_DIR, "raw", f"{NGRAM_SUFFIX}_expanded")
-DATA_PROCESSED_EXPANDED_DIR = os.path.join(DATA_DIR, "processed", f"{NGRAM_SUFFIX}_expanded")
+DATA_RAW_EXPANDED_DIR = os.path.join(BASE_DATA_DIR, "raw", f"{NGRAM_SUFFIX}_expanded")
+DATA_PROCESSED_EXPANDED_DIR = os.path.join(BASE_DATA_DIR, "processed", f"{NGRAM_SUFFIX}_expanded")
 
 # File paths
 TOTAL_COUNTS_FILE = os.path.join(DATA_RAW_DIR, "total_counts.txt")
@@ -124,8 +125,7 @@ VOCAB_FILE = os.environ.get("VOCAB_PATH", os.path.join(DATA_PROCESSED_DIR,"vocab
 FREQUENCIES_DIR = Path(os.environ.get("FREQUENCIES_DIR", os.path.join(ALIGNMENT_BASE, NGRAM_SUFFIX, "frequencies")))
 
 # ============================================================================
-# VISUALIZZAZIONE E LOGGING
-# ========ATION AND LOGGING
+# VISUALIZATION AND LOGGING
 # ============================================================================
 
 # Visualization parameters
@@ -144,9 +144,28 @@ SHOW_PROGRESS_BAR = True
 # ============================================================================
 
 def create_directories():
-    """Create required directories."""
-    for d in [DATA_RAW_DIR, DATA_PROCESSED_DIR, MODELS_DIR, PLOTS_DIR, ALIGNMENT_ROOT, 
-              DATA_RAW_EXPANDED_DIR, DATA_PROCESSED_EXPANDED_DIR]:
+    """Create required directories for the entire pipeline.
+    
+    Creates:
+    - Raw and processed data directories (standard and expanded)
+    - Model and plots directories
+    - Alignment directories (transforms, drift results, global results)
+    - Frequencies directory
+    """
+    dirs = [
+        DATA_RAW_DIR,
+        DATA_PROCESSED_DIR,
+        DATA_RAW_EXPANDED_DIR,
+        DATA_PROCESSED_EXPANDED_DIR,
+        MODELS_DIR,
+        PLOTS_DIR,
+        ALIGNMENT_ROOT,
+        ALIGNMENT_TRANSFORMS_DIR,
+        ALIGNMENT_DRIFT_RESULTS_DIR,
+        ALIGNMENT_GLOBAL_RESULTS_DIR,
+        FREQUENCIES_DIR,
+    ]
+    for d in dirs:
         os.makedirs(d, exist_ok=True)
 
 def get_decade_from_year(year: int) -> str:
@@ -161,6 +180,42 @@ def get_model_path(period: str) -> str:
     """Get path to model file for a given period."""
     return os.path.join(MODELS_DIR, f"emb_{period}.pt")
 
-def get_vocab_path() -> str:
-    """Get path to vocabulary file."""
+def get_preprocess_input_file(expanded: bool = True) -> str:
+    """Get path to n-gram input file for preprocessing.
+    
+    Args:
+        expanded: If True (default), returns path in expanded dataset directory.
+                 If False, returns path in standard dataset directory.
+    
+    Returns:
+        Path to n-gram file for preprocessing input.
+    """
+    base_dir = DATA_RAW_EXPANDED_DIR if expanded else DATA_RAW_DIR
+    return os.path.join(base_dir, "ngrams.txt")
+
+def get_preprocess_output_dir(expanded: bool = False) -> str:
+    """Get output directory for preprocessing.
+    
+    Args:
+        expanded: If True, returns expanded processed directory.
+                 If False (default), returns standard processed directory.
+    
+    Returns:
+        Path to preprocessing output directory.
+    """
+    return DATA_PROCESSED_EXPANDED_DIR if expanded else DATA_PROCESSED_DIR
+
+def get_vocab_path(processed_dir: str = None) -> str:
+    """Get path to vocabulary file.
+    
+    Args:
+        processed_dir: Optional custom processed directory path.
+                      If provided, returns vocab.json from this directory.
+                      If None (default), returns default VOCAB_FILE.
+    
+    Returns:
+        Path to vocabulary JSON file.
+    """
+    if processed_dir:
+        return os.path.join(processed_dir, "vocab.json")
     return VOCAB_FILE

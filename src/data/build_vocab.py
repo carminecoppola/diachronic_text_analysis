@@ -1,7 +1,14 @@
 """
-FASE 3: Costruzione vocabolario comune (interattivo)
+PHASE 3: Build shared vocabulary (interactive)
 
-Questo script costruisce un vocabolario COMUNE a tutti i decenni per una directory di dati processati scelta dall'utente.
+Constructs vocabulary common across all decades from preprocessed n-gram files.
+Loads word frequencies, selects top-K words, generates statistics.
+
+Process:
+1. Find directories with decade files
+2. Let user select a directory
+3. Aggregate word frequencies
+4. Build vocabulary and save with statistics
 """
 import os
 import sys

@@ -1,25 +1,16 @@
 """
-FASE 1: Download e filtraggio Google Books N-grams
+PHASE 1: Download and filter Google Books N-grams
 
-Questo script gestisce il download dei dati Google Books N-grams (1-grams)
-e il filtraggio iniziale per anni di interesse.
+Downloads N-gram data from Google Cloud Storage and filters by time period.
+Handles format conversion from compact v3 format to expanded format.
 
-COSA FA:
-1. Scarica file 1-gram inglesi da Google Cloud Storage
-2. Scarica file total_counts (necessario per normalizzazione)
-3. Filtra righe mantenendo solo anni 1900-1990
-4. Salva dati filtrati in data/raw/
+Input: Google Books N-grams v3 (gzipped files)
+Output:
+  - ngram \t year \t match_count \t volume_count (TSV format)
 
-NOTA IMPORTANTE:
-I file completi sono MOLTO grandi (centinaia di GB).
-Per scopi universitari/test, è sufficiente scaricare un subset (3-5 file).
-
-OUTPUT:
-- data/raw/1gram_filtered.tsv: N-gram filtrati per anni
-- data/raw/total_counts.txt: Totali per normalizzazione
-
-Formato output:
-ngram \t year \t match_count \t volume_count
+Notes:
+- Files are very large (hundreds of GB for complete dataset)
+- For academic/test purposes, use subset download (3-5 files)
 """
 
 import os
@@ -48,76 +39,62 @@ from config import (
 
 def download_file(url: str, dest_path: str) -> bool:
     """
-    Scarica un file con progress bar.
+    Download file from URL with progress bar.
+    Retries with User-Agent header to avoid access restrictions.
     
     Args:
-        url: URL del file da scaricare
-        dest_path: Path di destinazione
+        url: Source URL
+        dest_path: Destination file path
     
     Returns:
-        True se successo, False altrimenti
+        True on success, False on failure
     """
     try:
         print(f"Downloading {url}...")
-        
-        # Request con user agent
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        
         with urllib.request.urlopen(req) as response:
             total_size = int(response.headers.get('content-length', 0))
-            
             with open(dest_path, 'wb') as f, tqdm(
-                total=total_size,
-                unit='B',
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as pbar:
-                chunk_size = 8192
-                while True:
-                    chunk = response.read(chunk_size)
-                    if not chunk:
-                        break
+                total=total_size, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
+                for chunk in iter(lambda: response.read(8192), b''):
                     f.write(chunk)
                     pbar.update(len(chunk))
-        
         return True
-    
     except Exception as e:
-        print(f"Errore download: {e}")
+        print(f"Download error: {e}")
         return False
 
 
 def download_total_counts() -> bool:
     """
-    Scarica il file total_counts necessario per normalizzazione (V3 format).
+    Download total_counts file for normalization (v3 format).
+    Creates placeholder if unavailable; pipeline continues without it.
     
     Returns:
-        True se successo, False altrimenti
+        True if successful or placeholder created
     """
     print("\n" + "="*70)
     print("DOWNLOAD TOTAL_COUNTS")
     print("="*70)
     
     if os.path.exists(TOTAL_COUNTS_FILE):
-        print(f"✓ File già presente: {TOTAL_COUNTS_FILE}")
+        print(f"✓ File exists: {TOTAL_COUNTS_FILE}")
         return True
     
-    # V3 2020 usa totalcounts-1 (non più il vecchio formato)
     url = f"{NGRAMS_BASE_URL}/totalcounts-1"
+    print(f"Attempting download from: {url}")
     
-    print(f"Tentativo download da: {url}")
     if download_file(url, TOTAL_COUNTS_FILE):
         return True
     
-    print("\n⚠️  Total_counts non disponibile per questa versione.")
-    print("Il progetto può continuare senza normalizzazione (userà frequenze raw)")
-    print("Creo file segnaposto...")
+    print("\n⚠️  Total_counts unavailable for this dataset version.")
+    print("Pipeline will continue using raw frequencies (no normalization)")
+    print("Creating placeholder...")
     
-    # Crea file segnaposto
     with open(TOTAL_COUNTS_FILE, 'w') as f:
-        f.write("# Total counts non disponibile per versione dataset\n")
+        f.write("# Total counts unavailable for this dataset\n")
     
-    return True  # Continua comunque
+    return True
 
 
 def download_and_filter_ngrams() -> bool:
@@ -298,32 +275,35 @@ def download_and_filter_ngrams() -> bool:
 
 
 def main():
-    """Main function."""
+    """
+    Main pipeline: download and filter n-grams from Google Books.
     
+    Steps:
+    1. Create necessary directories
+    2. Download total_counts file (or create placeholder)
+    3. Download and filter n-gram files by year range
+    """
     print("="*70)
-    print("GOOGLE BOOKS N-GRAMS - DOWNLOAD E FILTRAGGIO")
+    print("GOOGLE BOOKS N-GRAMS - DOWNLOAD AND FILTER")
     print("="*70)
     print(f"Dataset: Google Books N-grams v3 ({DATASET_VERSION})")
-    print(f"Lingua: {LANGUAGE}")
-    print(f"Periodo: {START_YEAR}-{END_YEAR}")
+    print(f"Language: {LANGUAGE}")
+    print(f"Period: {START_YEAR}-{END_YEAR}")
     print("="*70 + "\n")
     
-    # Crea directory
     create_directories()
     
-    # Step 1: Download total_counts
     if not download_total_counts():
-        print("❌ Errore download total_counts. Impossibile continuare.")
+        print("❌ Error: Failed to download total_counts.")
         return 1
     
-    # Step 2: Download e filtra n-grams
     if not download_and_filter_ngrams():
-        print("❌ Errore download/filtraggio N-grams.")
+        print("❌ Error: Failed to download/filter n-grams.")
         return 1
     
-    print("\n✅ FASE 1 COMPLETATA")
-    print(f"Dati {NGRAM_TYPE}-gram scaricati e filtrati.")
-    print("Prossimo step: eseguire preprocess.py per aggregazione per decennio")
+    print("\n✅ PHASE 1 COMPLETE")
+    print(f"{NGRAM_TYPE}-gram data downloaded and filtered.")
+    print("Next step: run preprocess.py for decade aggregation")
     
     return 0
 

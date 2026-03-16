@@ -1,24 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Preprocessing NLP per Word2Vec/CBOW - Analisi Diacronica
+NLP Preprocessing for Word2Vec/CBOW - Diachronic Text Analysis
 
-REGOLE IMPLEMENTATE (per Word2Vec/CBOW):
-1. Normalizzazione: lowercase + rimozione accenti
-2. Tokenizzazione: parole superficiali, NO token artificiali (no <s>, </s>)
-3. Filtri: rimuove URL, hash, codici, pattern non linguistici
-4. Numeri: sostituiti con NUM (mantiene ruolo sintattico, riduce vocabolario)
-5. Stopword: MANTENUTE (fondamentali per contesti stabili in diacronia)
-6. Lemmatizzazione: NO (forme flessive hanno distribuzioni distinte)
+Implements linguistic preprocessing tailored for Word2Vec:
+1. Normalization: lowercase + Unicode accent removal
+2. Tokenization: surface-level, no artificial boundaries (<s>, </s>)
+3. Filtering: removes URLs, hashes, non-linguistic patterns  
+4. Numbers: replaced with NUM token (preserves syntactic role)
+5. Stopwords: RETAINED (essential for contextual stability)
+6. Lemmatization: NOT applied (word forms have distinct distributions)
 
-MOTIVAZIONI:
-- Token boundary: CBOW usa finestre locali, non serve inizio/fine frase
-- Stopword: essenziali per stabilità contestuale e analisi diacronica
-- Lemmatizzazione: rimuoverebbe informazione morfologica rilevante per diacronia
-- Numeri → NUM: cattura ruolo sintattico, mantiene token significativi (mp3, covid19)
-
-INPUT: file filtrato "ngram TAB year TAB counts"
-OUTPUT: un file per decennio con n-gram puliti, uno per riga
+Input: filtered n-gram file (format: ngram \t year \t count)
+Output: per-decade files with cleaned n-grams (one per line, frequency-weighted)
 """
 
 import os

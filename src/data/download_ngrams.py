@@ -21,7 +21,7 @@ from tqdm import tqdm
 from typing import Set
 
 # Import config
-from config import (
+from src.config import (
     DATA_RAW_DIR,
     TOTAL_COUNTS_FILE,
     START_YEAR,

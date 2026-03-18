@@ -14,9 +14,13 @@ from tqdm import tqdm
 # Aggiungi src al path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# Aggiungi src al path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from config import (
     START_YEAR, END_YEAR, LANGUAGE, DATASET_VERSION,
-    NGRAMS_BASE_URL, NGRAM_TYPE, ONLY_ALPHABETIC
+    NGRAMS_BASE_URL, NGRAM_TYPE, ONLY_ALPHABETIC,
+    DATA_RAW_EXPANDED_DIR
 )
 
 # ============================================================================
@@ -24,8 +28,7 @@ from config import (
 # ============================================================================
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
-DATA_RAW_EXPANDED_DIR = os.path.join(DATA_DIR, "raw", f"{NGRAM_TYPE}gram_expanded")
+
 os.makedirs(DATA_RAW_EXPANDED_DIR, exist_ok=True)
 
 OUTPUT_FILE = os.path.join(DATA_RAW_EXPANDED_DIR, f"{NGRAM_TYPE}gram_filtered_expanded.tsv")

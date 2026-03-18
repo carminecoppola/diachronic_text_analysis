@@ -151,7 +151,7 @@ def main():
         epilog="""
 Examples:
   # Build vocabulary from standard directory
-  python src/data/build_vocab.py --processed-dir data/processed/5gram-full
+  python src/data/build_vocab.py --processed-dir data/processed/5gram
   
   # Build vocabulary from custom path
   python src/data/build_vocab.py --processed-dir /path/to/processed

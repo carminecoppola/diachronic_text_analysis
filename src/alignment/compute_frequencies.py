@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Tuple, Dict, List, Optional
 from tqdm import tqdm
 
-from src.config import ALIGNMENT_DIR
+from src.config import ALIGNMENT_BASE
 
 import glob
 import os
@@ -33,7 +33,7 @@ def get_decade_files(processed_dir):
 
 # Output subdirectory for frequency files (organized by n-gram type)
 def get_freq_output_dir(input_dir: Path) -> Path:
-    return Path(ALIGNMENT_DIR) / input_dir.name / "frequencies"
+    return Path(ALIGNMENT_BASE) / input_dir.name / "frequencies"
 
 # Setup logging
 logging.basicConfig(

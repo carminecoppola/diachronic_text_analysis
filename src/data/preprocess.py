@@ -136,8 +136,6 @@ def tokenize_and_clean(text: str) -> List[str]:
     
     return cleaned
 
-
-
 def process_ngram_line(line: str) -> Optional[Tuple[List[str], int, int]]:
     """
     Processes a line from the filtered n-gram file.

@@ -74,7 +74,7 @@ DATA_PROCESSED_DIR = os.path.join(BASE_DATA_DIR, "processed", NGRAM_SUFFIX)
 DATA_PROCESSED_EXPANDED_DIR = os.path.join(BASE_DATA_DIR, "processed", f"{NGRAM_SUFFIX}-expanded")
 
 # Models directory (trained CBOW checkpoints)
-MODELS_DIR = Path(os.environ.get("MODELS_DIR", os.path.join(PROJECT_ROOT, "models", NGRAM_SUFFIX)))
+MODELS_DIR = Path(os.environ.get("MODELS_DIR", os.path.join(PROJECT_ROOT, "models", f"{NGRAM_SUFFIX}-full")))
 
 # Visualization output
 PLOTS_DIR = os.environ.get("PLOTS_DIR", os.path.join(PROJECT_ROOT, "plots"))

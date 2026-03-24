@@ -89,7 +89,9 @@ ALIGNMENT_GLOBAL_RESULTS_DIR = os.path.join(ALIGNMENT_ROOT, "global_results")
 # Vocabulary and metadata files
 TOTAL_COUNTS_FILE = os.path.join(DATA_RAW_DIR, "total_counts.txt")
 VOCAB_FILE = os.environ.get("VOCAB_PATH", os.path.join(DATA_PROCESSED_DIR, "vocab.json"))
+VOCAB_FILE_EXPANDED = os.environ.get("VOCAB_PATH", os.path.join(DATA_PROCESSED_EXPANDED_DIR, "vocab.json"))
 FREQUENCIES_DIR = Path(os.environ.get("FREQUENCIES_DIR", os.path.join(ALIGNMENT_BASE, NGRAM_SUFFIX, "frequencies")))
+FREQUENCIES_DIR_EXPANDED = Path(os.environ.get("FREQUENCIES_DIR_EXPANDED",os.path.join(ALIGNMENT_BASE, f"{NGRAM_SUFFIX}-full", "frequencies"),))
 
 # VISUALIZATION AND ANALYSIS CONFIGURATION
 TSNE_PERPLEXITY = 30           # t-SNE perplexity (standard: 30)
@@ -115,6 +117,7 @@ def create_directories():
         ALIGNMENT_DRIFT_RESULTS_DIR,
         ALIGNMENT_GLOBAL_RESULTS_DIR,
         FREQUENCIES_DIR,
+        FREQUENCIES_DIR_EXPANDED,
     ]
     for d in dirs:
         os.makedirs(d, exist_ok=True)

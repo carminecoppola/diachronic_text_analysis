@@ -83,8 +83,12 @@ PLOTS_DIR = os.environ.get("PLOTS_DIR", os.path.join(PROJECT_ROOT, "plots"))
 ALIGNMENT_BASE = os.environ.get("ALIGNMENT_BASE", os.path.join(PROJECT_ROOT, "alignment"))
 ALIGNMENT_ROOT = os.path.join(ALIGNMENT_BASE, os.environ.get("ALIGNMENT_NGRAM", NGRAM_SUFFIX))
 ALIGNMENT_TRANSFORMS_DIR = os.path.join(ALIGNMENT_ROOT, os.environ.get("ALIGNMENT_SUBDIR", "transforms"))
+ALIGNMENT_TRANSFORMS_DIR_EXPANDED = os.path.join(ALIGNMENT_BASE, f"{NGRAM_SUFFIX}-full", os.environ.get("ALIGNMENT_SUBDIR", "transforms"),)
 ALIGNMENT_DRIFT_RESULTS_DIR = os.path.join(ALIGNMENT_ROOT, "drift_results")
+ALIGNMENT_DRIFT_RESULTS_DIR_EXPANDED = os.path.join(ALIGNMENT_BASE, f"{NGRAM_SUFFIX}-full", os.environ.get("ALIGNMENT_SUBDIR", "drift_results"),)
 ALIGNMENT_GLOBAL_RESULTS_DIR = os.path.join(ALIGNMENT_ROOT, "global_results")
+ALIGNMENT_GLOBAL_RESULTS_DIR_EXPANDED = os.path.join(ALIGNMENT_BASE, f"{NGRAM_SUFFIX}-full", os.environ.get("ALIGNMENT_SUBDIR", "global_results"),)
+
 
 # Vocabulary and metadata files
 TOTAL_COUNTS_FILE = os.path.join(DATA_RAW_DIR, "total_counts.txt")
@@ -114,8 +118,11 @@ def create_directories():
         PLOTS_DIR,
         ALIGNMENT_ROOT,
         ALIGNMENT_TRANSFORMS_DIR,
+        ALIGNMENT_TRANSFORMS_DIR_EXPANDED,
         ALIGNMENT_DRIFT_RESULTS_DIR,
+        ALIGNMENT_DRIFT_RESULTS_DIR_EXPANDED,
         ALIGNMENT_GLOBAL_RESULTS_DIR,
+        ALIGNMENT_GLOBAL_RESULTS_DIR_EXPANDED,
         FREQUENCIES_DIR,
         FREQUENCIES_DIR_EXPANDED,
     ]

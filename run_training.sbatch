@@ -8,23 +8,6 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --partition=gpu
 
-# ============================================================================
-# SBATCH per Training CBOW (FASE 5)
-# ============================================================================
-# Esecuzione:
-#   sbatch run_training.sbatch
-#
-# Monitoraggio:
-#   squeue -u $USER
-#   tail -f logs/training_*.log
-#
-# Risorse richieste:
-#   - 16 CPUs
-#   - 64 GB RAM
-#   - 4 GPUs (per distributed training)
-#   - 24 ore max
-# ============================================================================
-
 # Carica moduli HPC (adatta a tuo cluster)
 module load python/3.11
 module load cuda/12.2
@@ -41,7 +24,7 @@ source .venv/bin/activate
 
 # Info job
 echo "=========================================="
-echo "🚀 SBATCH: CBOW Training (FASE 5)"
+echo "SBATCH: CBOW Training (FASE 5)"
 echo "=========================================="
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURM_NODELIST"
@@ -60,14 +43,14 @@ export CUDA_LAUNCH_BLOCKING=1
 export PYTHONPATH=/home/vbucciero/diachronic_text_analysis/src:$PYTHONPATH
 
 # Log configurazione
-echo "🔧 Configuration:"
+echo "Configuration:"
 echo "  - CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 echo "  - OMP_NUM_THREADS: $OMP_NUM_THREADS"
 echo "  - TORCH_HOME: $TORCH_HOME"
 echo ""
 
 # Esegui training
-echo "🚀 Starting training..."
+echo "Starting training..."
 # python src/train.py
 python /home/vbucciero/diachronic_text_analysis/src/models/train.py
 
@@ -77,9 +60,9 @@ EXIT_CODE=$?
 echo ""
 echo "=========================================="
 if [ $EXIT_CODE -eq 0 ]; then
-  echo "✅ Training completato con successo"
+  echo "Training successfully completed"
 else
-  echo "❌ Training fallito (exit code: $EXIT_CODE)"
+  echo "Training failed (exit code: $EXIT_CODE)"
 fi
 echo "Time: $(date)"
 echo "=========================================="

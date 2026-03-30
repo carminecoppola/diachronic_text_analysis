@@ -42,7 +42,7 @@ ONLY_ALPHABETIC = True  # Keep only alphabetic n-grams (no numbers/punctuation)
 # VOCABULARY CONFIGURATION
 # Fixed vocabulary (top 50K words + UNK token) built once from entire corpus
 # Ensures consistent word→index mapping across all decades and training runs
-VOCAB_SIZE = 50001             # 50,000 words + 1 UNK token
+VOCAB_SIZE = 50002             # 50,000 words + 1 UNK token
 MIN_VOCAB_FREQ = 100           # Minimum frequency for inclusion
 UNK_TOKEN = "<UNK>"            # Out-of-vocabulary token
 

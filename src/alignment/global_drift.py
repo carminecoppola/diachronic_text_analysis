@@ -8,13 +8,13 @@ from config import DECADES
 
 # Configuration
 from config import (
-    VOCAB_FILE,
+    VOCAB_FILE_EXPANDED,
     MODELS_DIR,
-    ALIGNMENT_TRANSFORMS_DIR,
-    ALIGNMENT_GLOBAL_RESULTS_DIR,
+    ALIGNMENT_TRANSFORMS_DIR_EXPANDED,
+    ALIGNMENT_GLOBAL_RESULTS_DIR_EXPANDED,
 )
-Path(ALIGNMENT_TRANSFORMS_DIR).mkdir(parents=True, exist_ok=True)
-Path(ALIGNMENT_GLOBAL_RESULTS_DIR).mkdir(parents=True, exist_ok=True)
+Path(ALIGNMENT_TRANSFORMS_DIR_EXPANDED).mkdir(parents=True, exist_ok=True)
+Path(ALIGNMENT_GLOBAL_RESULTS_DIR_EXPANDED).mkdir(parents=True, exist_ok=True)
 
 
 def load_common_vocab(path: Path) -> dict:
@@ -27,7 +27,7 @@ def load_embedding_matrix_pt(decade: str) -> np.ndarray:
     return state["embeddings.weight"].detach().cpu().numpy()
 
 def load_alignment_pair(d_t: str, d_t1: str):
-    path = Path(ALIGNMENT_TRANSFORMS_DIR) / f"alignment_{d_t}_to_{d_t1}.pt"
+    path = Path(ALIGNMENT_TRANSFORMS_DIR_EXPANDED) / f"alignment_{d_t}_to_{d_t1}.pt"
     obj = torch.load(path, map_location="cpu")
     return {
         "R": obj["R"].numpy(),
@@ -67,7 +67,7 @@ def cosine(u, v):
     return float(np.dot(u, v) / (nu * nv))
 
 def main():
-    vocab = load_common_vocab(VOCAB_FILE)
+    vocab = load_common_vocab(VOCAB_FILE_EXPANDED)
     ref = "2010s"
     E_ref = load_embedding_matrix_pt(ref)
 
@@ -88,7 +88,7 @@ def main():
         drift = 1.0 - sim
         trajectory.append({"decade": d, "cosine_to_2010s": sim, "drift_to_2010s": drift})
 
-    out_path = Path(ALIGNMENT_GLOBAL_RESULTS_DIR) / f"oTrajectory_{target_word}_to_{ref}.json"
+    out_path = Path(ALIGNMENT_GLOBAL_RESULTS_DIR_EXPANDED) / f"oTrajectory_{target_word}_to_{ref}.json"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(trajectory, f, ensure_ascii=False, indent=2)
 

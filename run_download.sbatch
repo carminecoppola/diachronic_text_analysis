@@ -54,7 +54,7 @@ mkdir -p logs
 
 # Esegui download parallelo
 echo "Avvio download parallelo con 8 worker..."
-echo "Output: data/raw/5gram_expanded/5gram_filtered_expanded.tsv"
+echo "Output: data/raw/5gram-expanded/5gram_filtered_expanded.tsv"
 echo ""
 
 python3 src/data/download_parallel.py
@@ -70,14 +70,14 @@ echo "==========================================================================
 echo ""
 
 # Statistiche finali
-if [ -d "data/raw/5gram_expanded" ]; then
+if [ -d "data/raw/5gram-expanded" ]; then
     echo "Statistiche finali:"
-    echo "  File scaricati: $(ls -1 data/raw/5gram_expanded/*.gz 2>/dev/null | wc -l)"
-    echo "  Spazio utilizzato: $(du -sh data/raw/5gram_expanded/ 2>/dev/null | cut -f1)"
+    echo "  File scaricati: $(ls -1 data/raw/5gram-expanded/*.gz 2>/dev/null | wc -l)"
+    echo "  Spazio utilizzato: $(du -sh data/raw/5gram-expanded/ 2>/dev/null | cut -f1)"
     
-    if [ -f "data/raw/5gram_expanded/5gram_filtered_expanded.tsv" ]; then
-        echo "  File output: $(du -sh data/raw/5gram_expanded/5gram_filtered_expanded.tsv | cut -f1)"
-        echo "  Righe output: $(wc -l < data/raw/5gram_expanded/5gram_filtered_expanded.tsv)"
+    if [ -f "data/raw/5gram-expanded/5gram_filtered_expanded.tsv" ]; then
+        echo "  File output: $(du -sh data/raw/5gram-expanded/5gram_filtered_expanded.tsv | cut -f1)"
+        echo "  Righe output: $(wc -l < data/raw/5gram-expanded/5gram_filtered_expanded.tsv)"
     fi
 fi
 

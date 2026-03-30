@@ -115,36 +115,65 @@ def compute_global_min_count(freq_by_decade: dict, ratio: float = 1e-5, min_floo
 
 
 
-def select_anchor_words(freq_t: dict, freq_t1: dict, min_count: int) -> list:
+# def select_anchor_words(freq_t: dict, freq_t1: dict, min_count: int) -> list:
+#     """
+#     Select anchor words shared by two consecutive decades.
+    
+#     Anchor words are those that:
+#     1. Appear in both decades
+#     2. Have frequency >= min_count in both decades
+    
+#     Args:
+#         freq_t: Frequency dictionary for decade t
+#         freq_t1: Frequency dictionary for decade t+1
+#         min_count: Minimum token frequency required in both decades
+    
+#     Returns:
+#         Sorted list of anchor words
+#     """
+#     # Find words present in both decades
+#     words_t = set(freq_t.keys())
+#     words_t1 = set(freq_t1.keys())
+#     shared_words = words_t & words_t1
+    
+#     # Filter by minimum count in both decades
+#     anchors = [
+#         word for word in shared_words
+#         if freq_t[word] >= min_count and freq_t1[word] >= min_count 
+#     ]
+    
+#     # Return sorted for reproducibility
+#     return sorted(anchors)
+
+def select_anchor_words(
+    freq_t: dict,
+    freq_t1: dict,
+    min_count: int,
+    max_freq_ratio: float = 2.0
+) -> list:
     """
     Select anchor words shared by two consecutive decades.
-    
-    Anchor words are those that:
-    1. Appear in both decades
-    2. Have frequency >= min_count in both decades
-    
-    Args:
-        freq_t: Frequency dictionary for decade t
-        freq_t1: Frequency dictionary for decade t+1
-        min_count: Minimum token frequency required in both decades
-    
-    Returns:
-        Sorted list of anchor words
-    """
-    # Find words present in both decades
-    words_t = set(freq_t.keys())
-    words_t1 = set(freq_t1.keys())
-    shared_words = words_t & words_t1
-    
-    # Filter by minimum count in both decades
-    anchors = [
-        word for word in shared_words
-        if freq_t[word] >= min_count and freq_t1[word] >= min_count 
-    ]
-    
-    # Return sorted for reproducibility
-    return sorted(anchors)
 
+    Conditions:
+    1. Present in both decades
+    2. Frequency >= min_count in both decades
+    3. Frequency ratio between decades not too large
+    """
+    shared_words = set(freq_t.keys()) & set(freq_t1.keys())
+    anchors = []
+
+    for word in shared_words:
+        c_t = freq_t[word]
+        c_t1 = freq_t1[word]
+
+        if c_t < min_count or c_t1 < min_count:
+            continue
+
+        ratio = max(c_t, c_t1) / max(1, min(c_t, c_t1))
+        if ratio <= max_freq_ratio:
+            anchors.append(word)
+
+    return sorted(anchors)
 
 def build_alignment_matrices(anchor_words: list, E_t: np.ndarray, E_t1: np.ndarray, vocab: dict) -> tuple:
     
@@ -409,7 +438,7 @@ def main():
         }
 
         out_path = Path(ALIGNMENT_TRANSFORMS_DIR) / f"alignment_{d_t}_to_{d_t1}.pt"
-        torch.save(alignment_obj, out_path)
+        #torch.save(alignment_obj, out_path)
         print(f"Saved alignment: {out_path}")
     
         # Step 5: Apply alignment
@@ -519,12 +548,12 @@ def main():
             for i in top_idx
         ]
 
-        out_file = Path(ALIGNMENT_DRIFT_RESULTS_DIR) / f"drift_{d_t}_to_{d_t1}.json"
+        # out_file = Path(ALIGNMENT_DRIFT_RESULTS_DIR) / f"drift_{d_t}_to_{d_t1}.json"
 
-        with open(out_file, "w", encoding="utf-8") as f:
-            json.dump(out_data, f, ensure_ascii=False, indent=2)
+        # with open(out_file, "w", encoding="utf-8") as f:
+        #     json.dump(out_data, f, ensure_ascii=False, indent=2)
 
-        print(f"\nSaved: drift_{d_t}_to_{d_t1}.json")
+        # print(f"\nSaved: drift_{d_t}_to_{d_t1}.json")
 
     return  
 
